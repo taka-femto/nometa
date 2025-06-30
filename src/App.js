@@ -26,6 +26,10 @@ function App() {
   const [userName, setUserName] = useState('');
   const [showWelcome, setShowWelcome] = useState(false);
   
+  // チュートリアル状態
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
+  
   // モーダルの状態
   const [showModal, setShowModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
@@ -295,8 +299,56 @@ function App() {
       setUserName(nameInput.trim());
       localStorage.setItem('nonda-username', nameInput.trim());
       setShowWelcome(false);
+      
+      // チュートリアルがまだ表示されていない場合は表示
+      const tutorialCompleted = localStorage.getItem('nonda-tutorial-completed');
+      if (!tutorialCompleted) {
+        setShowTutorial(true);
+        setTutorialStep(0);
+      }
     }
   };
+  
+  // チュートリアルを次のステップに進める
+  const nextTutorialStep = () => {
+    if (tutorialStep < tutorialSteps.length - 1) {
+      setTutorialStep(tutorialStep + 1);
+    } else {
+      // チュートリアル完了
+      setShowTutorial(false);
+      localStorage.setItem('nonda-tutorial-completed', 'true');
+    }
+  };
+  
+  // チュートリアルをスキップ
+  const skipTutorial = () => {
+    setShowTutorial(false);
+    localStorage.setItem('nonda-tutorial-completed', 'true');
+  };
+  
+  // チュートリアルステップの定義
+  const tutorialSteps = [
+    {
+      title: "ようこそ、nondaへ！",
+      content: "nondaはサプリメントの服薬管理アプリです。継続を楽しくサポートします。",
+      buttonText: "次へ"
+    },
+    {
+      title: "📅 日付をタップして記録",
+      content: "カレンダーの日付をタップすると、服薬記録とメモを入力できます。",
+      buttonText: "次へ"
+    },
+    {
+      title: "⚙️ 設定で開始日を登録",
+      content: "右上の設定ボタンから服薬開始日を設定すると、継続日数や励ましメッセージが表示されます。",
+      buttonText: "次へ"
+    },
+    {
+      title: "🎉 成果をシェアしよう",
+      content: "継続の成果をSNSでシェアして、モチベーションを維持しましょう！",
+      buttonText: "始める"
+    }
+  ];
   
   // 通知許可を要求
   const requestNotificationPermission = async () => {
@@ -350,6 +402,104 @@ function App() {
         badge: '/favicon.ico'
       });
     }
+  };
+  
+  // SNSシェア機能
+  const shareToTwitter = () => {
+    const daysSinceStart = getDaysSinceStart();
+    const totalTakenDays = getTotalTakenDays();
+    const continuationRate = getTotalContinuationRate();
+    
+    const text = `nondaで${daysSinceStart}日間サプリメント管理中！\n総服薬日数: ${totalTakenDays}日\n継続率: ${continuationRate}%\n\n健康的な習慣を継続しています✨\n\n#nonda #サプリメント #健康管理 #継続は力なり`;
+    
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+  };
+  
+  const shareToFacebook = () => {
+    const daysSinceStart = getDaysSinceStart();
+    const totalTakenDays = getTotalTakenDays();
+    const continuationRate = getTotalContinuationRate();
+    
+    const text = `nondaでサプリメント管理を${daysSinceStart}日間継続中！総服薬日数${totalTakenDays}日、継続率${continuationRate}%を達成しました。健康的な習慣づくりを頑張っています！`;
+    
+    const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}&quote=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+  };
+  
+  const generateShareImage = () => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Canvasのサイズ設定（Instagram正方形）
+    canvas.width = 1080;
+    canvas.height = 1080;
+    
+    // 背景色
+    ctx.fillStyle = '#667eea';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // グラデーション背景
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, '#667eea');
+    gradient.addColorStop(1, '#764ba2');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // タイトル
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 72px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('nonda', canvas.width / 2, 200);
+    
+    // サブタイトル
+    ctx.font = '48px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText('サプリメント服薬記録', canvas.width / 2, 280);
+    
+    // 統計情報
+    const daysSinceStart = getDaysSinceStart();
+    const totalTakenDays = getTotalTakenDays();
+    const continuationRate = getTotalContinuationRate();
+    
+    ctx.font = 'bold 64px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText(`${daysSinceStart}日間継続中`, canvas.width / 2, 450);
+    
+    ctx.font = '52px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText(`総服薬日数: ${totalTakenDays}日`, canvas.width / 2, 550);
+    ctx.fillText(`継続率: ${continuationRate}%`, canvas.width / 2, 630);
+    
+    // 励ましメッセージ
+    ctx.font = '42px -apple-system, BlinkMacSystemFont, sans-serif';
+    const message = getMotivationalMessage();
+    const words = message.split('');
+    let line = '';
+    let y = 750;
+    
+    for (let i = 0; i < words.length; i++) {
+      const testLine = line + words[i];
+      const metrics = ctx.measureText(testLine);
+      const testWidth = metrics.width;
+      
+      if (testWidth > 900 && i > 0) {
+        ctx.fillText(line, canvas.width / 2, y);
+        line = words[i];
+        y += 50;
+      } else {
+        line = testLine;
+      }
+    }
+    ctx.fillText(line, canvas.width / 2, y);
+    
+    // ハッシュタグ
+    ctx.font = '36px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('#nonda #健康管理 #継続は力なり', canvas.width / 2, 950);
+    
+    // 画像をダウンロード
+    const link = document.createElement('a');
+    link.download = `nonda-share-${new Date().getTime()}.png`;
+    link.href = canvas.toDataURL();
+    link.click();
   };
   
   // カレンダーの日付を生成
@@ -444,6 +594,23 @@ function App() {
               <p>💪 {getMotivationalMessage()}</p>
             </div>
           )}
+          
+          {startDate && (
+            <div className="share-section">
+              <h3>成果をシェアしよう！</h3>
+              <div className="share-buttons">
+                <button className="share-btn twitter" onClick={shareToTwitter} title="Xでシェア">
+                  <span className="share-icon">𝕏</span>
+                </button>
+                <button className="share-btn facebook" onClick={shareToFacebook} title="Facebookでシェア">
+                  <i className="fab fa-facebook-f"></i>
+                </button>
+                <button className="share-btn instagram" onClick={generateShareImage} title="Instagram用画像をダウンロード">
+                  <i className="fab fa-instagram"></i>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </main>
       
@@ -481,6 +648,37 @@ function App() {
               </button>
               <button className="btn-primary" onClick={saveData}>
                 保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* チュートリアルモーダル */}
+      {showTutorial && (
+        <div className="modal-overlay">
+          <div className="modal-content tutorial-modal">
+            <div className="tutorial-progress">
+              <div className="progress-bar">
+                <div 
+                  className="progress-fill" 
+                  style={{width: `${((tutorialStep + 1) / tutorialSteps.length) * 100}%`}}
+                ></div>
+              </div>
+              <span className="progress-text">
+                {tutorialStep + 1} / {tutorialSteps.length}
+              </span>
+            </div>
+            
+            <h3>{tutorialSteps[tutorialStep].title}</h3>
+            <p>{tutorialSteps[tutorialStep].content}</p>
+            
+            <div className="tutorial-buttons">
+              <button className="btn-secondary" onClick={skipTutorial}>
+                スキップ
+              </button>
+              <button className="btn-primary" onClick={nextTutorialStep}>
+                {tutorialSteps[tutorialStep].buttonText}
               </button>
             </div>
           </div>
