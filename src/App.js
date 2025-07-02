@@ -2,10 +2,22 @@ import React, { useState } from 'react';
 import './App.css';
 
 function App() {
+  // Google Apps Script エンドポイント
+  const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwqlfdenxrpX0Wf6TqfMWIvJh1CcoTN6WKiAgSwIiPw91Xt52s5NQ9v3W5O754BPJGu/exec';
+  
   // 今日の日付を取得
   const today = new Date();
   
-  // 状態管理
+  // 認証関連の状態
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [showLogin, setShowLogin] = useState(false);
+  const [showPinInput, setShowPinInput] = useState(false);
+  const [pinCode, setPinCode] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+  
+  // 既存の状態管理
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [takenDays, setTakenDays] = useState(new Map());
@@ -14,6 +26,7 @@ function App() {
   const [reminderTime, setReminderTime] = useState('');
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
   const [isLutevitaSelected, setIsLutevitaSelected] = useState(false);
   const [isCustomSelected, setIsCustomSelected] = useState(false);
   const [customSupplementName, setCustomSupplementName] = useState('');
@@ -25,23 +38,216 @@ function App() {
   const [currentMemo, setCurrentMemo] = useState('');
   const [showSettings, setShowSettings] = useState(false);
 
-  // 初回起動時にデータを読み込み
-  React.useEffect(() => {
-    // ユーザー名を読み込み
-    const savedUserName = localStorage.getItem('nonda-username');
-    if (savedUserName) {
-      setUserName(savedUserName);
+  // 認証状態をチェック
+  const checkAuthStatus = () => {
+    const authToken = localStorage.getItem('nonda-auth-token');
+    const loginDate = localStorage.getItem('nonda-login-date');
+    const autoLogin = localStorage.getItem('nonda-auto-login');
+    
+    if (authToken && loginDate && autoLogin === 'true') {
+      const loginDateTime = new Date(loginDate);
+      const now = new Date();
+      const daysDiff = Math.floor((now - loginDateTime) / (1000 * 60 * 60 * 24));
       
-      // チュートリアル完了状況をチェック
-      const tutorialCompleted = localStorage.getItem('nonda-tutorial-completed');
-      if (!tutorialCompleted) {
-        setShowTutorial(true);
-        setTutorialStep(0);
+      if (daysDiff <= 30) {
+        // 30日以内なら自動ログイン
+        setIsAuthenticated(true);
+        const savedEmail = localStorage.getItem('nonda-user-email');
+        const savedName = localStorage.getItem('nonda-username');
+        if (savedEmail) setUserEmail(savedEmail);
+        if (savedName) setUserName(savedName);
+        return true;
+      } else {
+        // 期限切れなので認証データを削除
+        clearAuthData();
       }
-    } else {
-      setShowWelcome(true);
     }
     
+    return false;
+  };
+
+  // 認証データをクリア
+  const clearAuthData = () => {
+    localStorage.removeItem('nonda-auth-token');
+    localStorage.removeItem('nonda-login-date');
+    localStorage.removeItem('nonda-auto-login');
+    setIsAuthenticated(false);
+    setAuthEmail('');
+    setPinCode('');
+  };
+
+  // PIN送信
+  const sendPinCode = async (email) => {
+    setLoginLoading(true);
+    setAuthError('');
+    
+    try {
+      console.log('PIN送信開始:', email);
+      
+      const response = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          action: 'sendPin',
+          email: email
+        })
+      });
+      
+      console.log('レスポンス状況:', response.status);
+      const data = await response.json();
+      console.log('レスポンスデータ:', data);
+      
+      if (data.success) {
+        setAuthEmail(email);
+        setShowLogin(false);
+        setShowPinInput(true);
+        alert('PINコードを送信しました。メールボックス（迷惑メールフォルダも含む）をご確認ください。');
+      } else {
+        setAuthError(data.message || 'PIN送信に失敗しました');
+      }
+    } catch (error) {
+      console.error('PIN送信エラー:', error);
+      setAuthError('ネットワークエラーが発生しました。Google Apps Scriptの設定を確認してください。');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  // PIN認証
+  const verifyPinCode = async () => {
+    setLoginLoading(true);
+    setAuthError('');
+    
+    try {
+      console.log('PIN認証開始:', authEmail, 'PIN:', pinCode);
+      
+      // 実際のAPI認証
+      const response = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          action: 'verifyPin',
+          email: authEmail,
+          pin: pinCode
+        })
+      });
+      
+      console.log('認証レスポンス状況:', response.status);
+      const data = await response.json();
+      console.log('認証レスポンスデータ:', data);
+      
+      if (data.success) {
+        // 認証成功
+        const authToken = 'auth-' + Date.now();
+        const loginDate = new Date().toISOString();
+        
+        localStorage.setItem('nonda-auth-token', authToken);
+        localStorage.setItem('nonda-login-date', loginDate);
+        localStorage.setItem('nonda-auto-login', 'true');
+        
+        setIsAuthenticated(true);
+        setShowPinInput(false);
+        setPinCode('');
+        
+        // ユーザーデータの同期
+        if (data.userData) {
+          syncUserData(data.userData);
+        } else {
+          // 新規ユーザーの場合
+          setShowWelcome(true);
+        }
+      } else {
+        setAuthError(data.message || 'PIN認証に失敗しました');
+      }
+    } catch (error) {
+      console.error('PIN認証エラー:', error);
+      setAuthError('ネットワークエラーが発生しました。しばらくしてから再度お試しください。');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  // ユーザーデータを同期
+  const syncUserData = (userData) => {
+    if (userData.name) {
+      setUserName(userData.name);
+      localStorage.setItem('nonda-username', userData.name);
+    }
+    
+    if (userData.email) {
+      setUserEmail(userData.email);
+      localStorage.setItem('nonda-user-email', userData.email);
+    }
+    
+    // その他のデータも同期可能
+    if (userData.takenDays) {
+      // サーバーからの服薬記録を復元
+      const mapData = new Map();
+      for (const [key, value] of Object.entries(userData.takenDays)) {
+        mapData.set(key, new Set(value));
+      }
+      setTakenDays(mapData);
+    }
+    
+    if (userData.startDate) {
+      setStartDate(new Date(userData.startDate));
+      localStorage.setItem('nonda-start-date', userData.startDate);
+    }
+  };
+
+  // ログアウト
+  const handleLogout = () => {
+    if (window.confirm('ログアウトしますか？次回ログイン時にPIN認証が必要になります。')) {
+      clearAuthData();
+      setShowLogin(true);
+      // データは端末に残す（ローカルストレージは維持）
+    }
+  };
+
+  // ログイン処理
+  const handleLogin = () => {
+    const emailInput = document.getElementById('login-email-input').value;
+    
+    if (!emailInput.trim()) {
+      setAuthError('メールアドレスを入力してください');
+      return;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailInput.trim())) {
+      setAuthError('正しいメールアドレスを入力してください');
+      return;
+    }
+    
+    sendPinCode(emailInput.trim());
+  };
+
+  // PIN入力処理
+  const handlePinSubmit = () => {
+    if (pinCode.length !== 6) {
+      setAuthError('6桁のPINコードを入力してください');
+      return;
+    }
+    
+    verifyPinCode();
+  };
+
+  // 初回起動時にデータを読み込み
+  React.useEffect(() => {
+    // 認証状態をチェック
+    const isLoggedIn = checkAuthStatus();
+    
+    if (!isLoggedIn) {
+      // 未認証の場合はログイン画面を表示
+      setShowLogin(true);
+      return;
+    }
+    
+    // 認証済みの場合は既存のデータ読み込み処理
     // サプリ情報を読み込み
     const savedLutevita = localStorage.getItem('nonda-lutevita') === 'true';
     const savedCustom = localStorage.getItem('nonda-custom-supplement-enabled') === 'true';
@@ -93,6 +299,13 @@ function App() {
         mapData.set(key, memoMap);
       }
       setMemos(mapData);
+    }
+    
+    // チュートリアル状況をチェック
+    const tutorialCompleted = localStorage.getItem('nonda-tutorial-completed');
+    if (!tutorialCompleted && userName) {
+      setShowTutorial(true);
+      setTutorialStep(0);
     }
   }, []);
 
@@ -248,9 +461,22 @@ function App() {
     }
     
     const nameInput = document.getElementById('username-input').value;
+    const emailInput = document.getElementById('email-input').value;
+    
     if (nameInput.trim()) {
       setUserName(nameInput.trim());
       localStorage.setItem('nonda-username', nameInput.trim());
+    }
+    
+    if (emailInput.trim()) {
+      // 簡単なメール形式チェック
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailInput.trim())) {
+        alert('正しいメールアドレスを入力してください。');
+        return;
+      }
+      setUserEmail(emailInput.trim());
+      localStorage.setItem('nonda-user-email', emailInput.trim());
     }
     
     // サプリ情報を保存
@@ -287,16 +513,51 @@ function App() {
   // ウェルカム保存
   const saveWelcomeData = () => {
     const nameInput = document.getElementById('welcome-name-input').value;
-    if (nameInput.trim()) {
-      setUserName(nameInput.trim());
-      localStorage.setItem('nonda-username', nameInput.trim());
-      setShowWelcome(false);
-      
-      const tutorialCompleted = localStorage.getItem('nonda-tutorial-completed');
-      if (!tutorialCompleted) {
-        setShowTutorial(true);
-        setTutorialStep(0);
-      }
+    const emailInput = document.getElementById('welcome-email-input').value;
+    const consentCheckbox = document.getElementById('privacy-consent-checkbox').checked;
+    
+    if (!nameInput.trim()) {
+      alert('お名前を入力してください。');
+      return;
+    }
+    
+    if (!emailInput.trim()) {
+      alert('メールアドレスを入力してください。');
+      return;
+    }
+    
+    // 簡単なメール形式チェック
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailInput.trim())) {
+      alert('正しいメールアドレスを入力してください。');
+      return;
+    }
+    
+    if (!consentCheckbox) {
+      alert('プライバシーポリシーへの同意が必要です。');
+      return;
+    }
+    
+    setUserName(nameInput.trim());
+    setUserEmail(emailInput.trim());
+    localStorage.setItem('nonda-username', nameInput.trim());
+    localStorage.setItem('nonda-user-email', emailInput.trim());
+    localStorage.setItem('nonda-privacy-consent', 'true');
+    localStorage.setItem('nonda-consent-date', new Date().toISOString());
+    
+    // メールアドレスをサーバーに送信（将来的に）
+    console.log('ユーザー登録:', { 
+      name: nameInput.trim(), 
+      email: emailInput.trim(),
+      consentDate: new Date().toISOString()
+    });
+    
+    setShowWelcome(false);
+    
+    const tutorialCompleted = localStorage.getItem('nonda-tutorial-completed');
+    if (!tutorialCompleted) {
+      setShowTutorial(true);
+      setTutorialStep(0);
     }
   };
 
@@ -534,6 +795,130 @@ function App() {
     '7月', '8月', '9月', '10月', '11月', '12月'
   ];
 
+  // 認証が完了していない場合はログイン画面を表示
+  if (!isAuthenticated) {
+    return (
+      <div className="App">
+        {/* ログイン画面 */}
+        {showLogin && (
+          <div className="modal-overlay">
+            <div className="modal-content login-modal">
+              <h3>nondaにログイン</h3>
+              <p>メールアドレスに6桁のPINコードを送信します</p>
+              
+              <div className="modal-section">
+                <label htmlFor="login-email-input">メールアドレス</label>
+                <input
+                  id="login-email-input"
+                  type="email"
+                  placeholder="example@email.com"
+                  autoFocus
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleLogin();
+                    }
+                  }}
+                />
+              </div>
+              
+              {authError && (
+                <div className="error-message">
+                  {authError}
+                </div>
+              )}
+              
+              <div className="modal-buttons">
+                <button 
+                  className="btn-primary" 
+                  onClick={handleLogin}
+                  disabled={loginLoading}
+                >
+                  {loginLoading ? 'PIN送信中...' : 'PINコードを送信'}
+                </button>
+              </div>
+              
+              <div className="login-info">
+                <p>初回ログインの場合、アカウントが自動作成されます</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PIN入力画面 */}
+        {showPinInput && (
+          <div className="modal-overlay">
+            <div className="modal-content pin-modal">
+              <h3>PIN認証</h3>
+              <p>{authEmail} に6桁のPINコードを送信しました</p>
+              
+              <div className="modal-section">
+                <label htmlFor="pin-input">6桁のPINコード</label>
+                <input
+                  id="pin-input"
+                  type="text"
+                  maxLength="6"
+                  placeholder="123456"
+                  value={pinCode}
+                  onChange={(e) => setPinCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  autoFocus
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && pinCode.length === 6) {
+                      handlePinSubmit();
+                    }
+                  }}
+                  style={{
+                    fontSize: '24px',
+                    textAlign: 'center',
+                    letterSpacing: '8px',
+                    fontFamily: 'monospace'
+                  }}
+                />
+              </div>
+              
+              {authError && (
+                <div className="error-message">
+                  {authError}
+                </div>
+              )}
+              
+              <div className="modal-buttons">
+                <button 
+                  className="btn-secondary" 
+                  onClick={() => {
+                    setShowPinInput(false);
+                    setShowLogin(true);
+                    setPinCode('');
+                    setAuthError('');
+                  }}
+                >
+                  メールアドレスを変更
+                </button>
+                <button 
+                  className="btn-primary" 
+                  onClick={handlePinSubmit}
+                  disabled={loginLoading || pinCode.length !== 6}
+                >
+                  {loginLoading ? '認証中...' : 'ログイン'}
+                </button>
+              </div>
+              
+              <div className="login-info">
+                <p>PINコードが届かない場合は、迷惑メールフォルダもご確認ください</p>
+                <button 
+                  className="resend-pin-btn"
+                  onClick={() => sendPinCode(authEmail)}
+                  disabled={loginLoading}
+                >
+                  PINコードを再送信
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="App">
       <header className="app-header">
@@ -541,7 +926,11 @@ function App() {
         <p>{getDisplaySupplementName()}服薬記録</p>
         {userName && <p className="welcome-text">こんにちは、{userName}さん！</p>}
         <button className="settings-btn" onClick={() => setShowSettings(true)}>
-          ⚙️ 設定
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          設定
         </button>
       </header>
       
@@ -616,8 +1005,8 @@ function App() {
         <div className="footer-content">
           <div className="footer-section">
             <h4>nonda</h4>
-            <p>サプリメント服薬管理アプリ</p>
-            <p>継続をサポートし、健康習慣を楽しく記録</p>
+            <p>服薬管理アプリ</p>
+            <p>毎日の習慣を健康に</p>
           </div>
           
           <div className="footer-section">
@@ -626,6 +1015,11 @@ function App() {
             <p>
               <a href="https://yuru-store.com/" target="_blank" rel="noopener noreferrer">
                 YURU store
+              </a>
+            </p>
+            <p>
+              <a href="https://yuru-store.com/policies/privacy-policy" target="_blank" rel="noopener noreferrer">
+                プライバシーポリシー
               </a>
             </p>
           </div>
@@ -705,6 +1099,17 @@ function App() {
             </div>
             
             <div className="modal-section">
+              <label htmlFor="email-input">メールアドレス</label>
+              <input
+                id="email-input"
+                type="email"
+                defaultValue={userEmail}
+                placeholder="example@email.com"
+              />
+              <small>継続サポートや新機能のお知らせをお送りします。</small>
+            </div>
+            
+            <div className="modal-section">
               <label>飲んでいるサプリメント（複数選択可）</label>
               <div className="supplement-options">
                 <label className="supplement-option recommended">
@@ -780,6 +1185,13 @@ function App() {
                 保存
               </button>
             </div>
+            
+            <div className="logout-section">
+              <button className="logout-btn" onClick={handleLogout}>
+                ログアウト
+              </button>
+              <small>ログアウトすると次回ログイン時にPIN認証が必要になります</small>
+            </div>
           </div>
         </div>
       )}
@@ -799,10 +1211,46 @@ function App() {
                 placeholder="お名前を入力してください"
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
+                    const emailInput = document.getElementById('welcome-email-input');
+                    if (emailInput) emailInput.focus();
+                  }
+                }}
+              />
+            </div>
+            
+            <div className="modal-section">
+              <label htmlFor="welcome-email-input">メールアドレス</label>
+              <input
+                id="welcome-email-input"
+                type="email"
+                placeholder="example@email.com"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
                     saveWelcomeData();
                   }
                 }}
               />
+              <div className="email-usage-notice">
+                <p>ご入力いただいたメールアドレスは服薬継続サポートおよび、YURUストアからのご案内に使用いたします。</p>
+                <p>配信停止はいつでも可能です。</p>
+              </div>
+            </div>
+            
+            <div className="modal-section">
+              <label className="privacy-consent-label">
+                <input
+                  id="privacy-consent-checkbox"
+                  type="checkbox"
+                  required
+                />
+                <span className="checkmark"></span>
+                <span className="consent-text">
+                  <a href="https://yuru-store.com/policies/privacy-policy" target="_blank" rel="noopener noreferrer">
+                    プライバシーポリシー
+                  </a>
+                  に同意します
+                </span>
+              </label>
             </div>
             
             <div className="modal-buttons">

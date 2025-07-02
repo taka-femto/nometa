@@ -21,305 +21,284 @@ body {
 /* ヘッダー */
 .app-header {
   text-align: center;
-  margin-bottom: 24px;
-  padding: 12px 0;
+  padding: 16px 0;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e0e0e0;
   position: relative;
 }
 
 .app-header h1 {
-  font-size: 1.8rem;
-  font-weight: 300;
+  font-size: 32px;
   color: #2c3e50;
   margin-bottom: 8px;
+  font-weight: 700;
 }
 
 .app-header p {
   color: #7f8c8d;
-  font-size: 0.9rem;
+  font-size: 16px;
+  margin-bottom: 4px;
 }
 
 .welcome-text {
-  color: #27ae60 !important;
-  font-weight: 600;
-  margin-top: 8px;
+  color: #27ae60;
+  font-weight: 500;
+  font-size: 18px;
 }
 
+/* 設定ボタン */
 .settings-btn {
-  position: absolute;
-  top: 12px;
-  right: 0;
   background: #f8f9fa;
-  border: 2px solid #ecf0f1;
+  color: #7f8c8d;
+  border: 1px solid #e0e0e0;
+  padding: 8px 12px;
   border-radius: 8px;
-  padding: 4px 8px;
+  font-size: 14px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 11px;
+  transition: all 0.3s;
+  position: absolute;
+  top: 16px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .settings-btn:hover {
-  border-color: #3498db;
-  background: #3498db;
-  color: white;
+  background: #e9ecef;
+  border-color: #d5dbdb;
+  color: #5a6c7d;
+}
+
+.settings-btn svg {
+  flex-shrink: 0;
 }
 
 /* メインコンテンツ */
 .main-content {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  padding: 16px;
-  margin-bottom: 16px;
+  padding: 0 4px;
 }
 
-/* カレンダー */
+.calendar-container {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+/* カレンダーヘッダー */
 .calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.nav-button {
+  background: none;
+  color: #7f8c8d;
+  border: none;
+  width: 40px;
+  height: 40px;
+  font-size: 24px;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 20px;
-  gap: 12px;
+  transition: color 0.3s;
+}
+
+.nav-button:hover {
+  color: #5a6c7d;
 }
 
 .month-title {
-  font-size: 1.2rem;
+  font-size: 20px;
+  font-weight: 600;
   color: #2c3e50;
-  font-weight: 400;
   cursor: pointer;
-  transition: color 0.2s ease;
-  min-width: 140px;
-  text-align: center;
 }
 
 .month-title:hover {
   color: #3498db;
 }
 
-.nav-button {
-  background: none;
-  border: 2px solid #ecf0f1;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #7f8c8d;
-}
-
-.nav-button:hover {
-  border-color: #3498db;
-  color: #3498db;
-  transform: scale(1.1);
-}
-
+/* 曜日ヘッダー */
 .calendar-weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 2px;
+  margin-bottom: 8px;
 }
 
 .calendar-weekdays div {
   text-align: center;
   font-weight: 600;
   color: #7f8c8d;
-  padding: 12px 0;
-  font-size: 0.9rem;
+  padding: 8px 4px;
+  font-size: 14px;
 }
 
+/* カレンダーグリッド */
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
-  margin-bottom: 30px;
+  gap: 2px;
 }
 
 .calendar-day {
-  position: relative;
   aspect-ratio: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid #ecf0f1;
-  border-radius: 8px;
+  border: 1px solid #e0e0e0;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s;
+  position: relative;
+  font-size: 16px;
   font-weight: 500;
-  background: white;
-  font-size: 13px;
-  min-height: 40px;
-}
-
-.calendar-day:hover {
-  border-color: #3498db;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
+  border-radius: 8px;
 }
 
 .calendar-day.empty {
-  border: none;
   cursor: default;
+  border: none;
 }
 
-.calendar-day.empty:hover {
-  transform: none;
-  box-shadow: none;
+.calendar-day:hover:not(.empty) {
+  background: #ecf0f1;
+  transform: scale(1.05);
 }
 
 .calendar-day.today {
-  border-color: #e74c3c;
-  background: #ffeaea;
+  background: #3498db;
+  color: white;
   font-weight: 700;
 }
 
 .calendar-day.taken {
-  background: #2ecc71;
-  color: white;
-  border-color: #27ae60;
-}
-
-.calendar-day.taken:hover {
   background: #27ae60;
-  border-color: #2ecc71;
+  color: white;
 }
 
 .calendar-day.has-memo {
-  position: relative;
+  border: 2px solid #f39c12;
 }
 
 .check-mark {
   position: absolute;
   top: 2px;
-  right: 4px;
+  right: 2px;
   font-size: 12px;
-  font-weight: bold;
+  color: white;
 }
 
 .memo-indicator {
   position: absolute;
-  bottom: 2px;
-  left: 4px;
+  bottom: 1px;
+  right: 1px;
   font-size: 10px;
 }
 
-/* 統計情報 */
+/* 統計 */
 .stats {
-  text-align: center;
+  margin-top: 20px;
   padding: 16px;
   background: #f8f9fa;
   border-radius: 8px;
-  border: 1px solid #ecf0f1;
-  margin-bottom: 16px;
+  border: 1px solid #e0e0e0;
 }
 
 .total-stats {
-  margin-bottom: 20px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid #ecf0f1;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e0e0e0;
 }
 
-.total-stats .total-days {
-  font-size: 1.2rem;
-  font-weight: 700;
+.total-days, .total-rate {
+  font-size: 16px;
+  margin-bottom: 4px;
   color: #2c3e50;
-  margin-bottom: 8px;
 }
 
-.total-stats .total-rate {
-  font-size: 1.05rem;
+.total-rate {
   font-weight: 600;
   color: #27ae60;
-  margin: 0;
 }
 
 .monthly-stats p {
-  margin: 6px 0;
-  font-size: 0.95rem;
+  font-size: 14px;
   color: #7f8c8d;
 }
 
 /* 励ましメッセージ */
 .motivation-message {
+  margin-top: 16px;
+  padding: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
   text-align: center;
-  padding: 16px;
-  background: #ffffff;
-  border: 2px solid #f0f0f0;
-  border-radius: 12px;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .motivation-message p {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #2c3e50;
-  line-height: 1.5;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 /* シェアセクション */
 .share-section {
+  margin-top: 20px;
   text-align: center;
-  padding: 16px;
-  background: #ffffff;
-  border: 2px solid #f0f0f0;
-  border-radius: 12px;
 }
 
 .share-section h3 {
+  font-size: 18px;
   color: #2c3e50;
-  margin-bottom: 16px;
-  font-size: 1rem;
-  font-weight: 600;
+  margin-bottom: 12px;
 }
 
 .share-buttons {
   display: flex;
-  gap: 16px;
   justify-content: center;
-  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .share-btn {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  border: 2px solid #e0e0e0;
-  border-radius: 50%;
-  background: transparent;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-decoration: none;
   font-size: 20px;
-  color: #95a5a6;
+  color: white;
+  transition: transform 0.3s;
 }
 
 .share-btn:hover {
-  transform: translateY(-1px);
-  border-color: currentColor;
+  transform: scale(1.1);
 }
 
-.share-btn.twitter:hover {
-  color: #1DA1F2;
+.share-btn.twitter {
+  background: #000;
 }
 
-.share-btn.facebook:hover {
-  color: #4267B2;
+.share-btn.facebook {
+  background: #1877f2;
 }
 
-.share-btn.instagram:hover {
-  color: #E4405F;
+.share-btn.instagram {
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
 }
 
 .share-icon {
-  font-size: 20px;
-  font-weight: 400;
+  font-size: 18px;
+  font-weight: bold;
 }
 
 /* モーダル */
@@ -335,26 +314,23 @@ body {
   justify-content: center;
   z-index: 1000;
   padding: 20px;
-  overflow-y: auto;
 }
 
 .modal-content {
   background: white;
   border-radius: 12px;
-  padding: 30px;
-  max-width: 350px;
+  padding: 24px;
+  max-width: 400px;
   width: 100%;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
   max-height: 90vh;
   overflow-y: auto;
-  margin: auto;
 }
 
 .modal-content h3 {
-  margin-bottom: 20px;
+  font-size: 20px;
   color: #2c3e50;
+  margin-bottom: 16px;
   text-align: center;
-  font-size: 1.3rem;
 }
 
 .modal-section {
@@ -363,86 +339,73 @@ body {
 
 .modal-section label {
   display: block;
-  margin-bottom: 8px;
   font-weight: 600;
   color: #2c3e50;
+  margin-bottom: 8px;
+  font-size: 14px;
 }
 
-.modal-section small {
-  display: block;
-  margin-top: 8px;
-  color: #7f8c8d;
-  font-size: 12px;
-}
-
+.modal-section input[type="text"],
+.modal-section input[type="email"],
 .modal-section input[type="date"],
 .modal-section input[type="time"],
-.modal-section input[type="text"] {
-  width: 100%;
-  padding: 12px;
-  border: 2px solid #ecf0f1;
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 14px;
-  transition: border-color 0.2s ease;
-}
-
-.modal-section input:focus {
-  outline: none;
-  border-color: #3498db;
-}
-
-.modal-section input[type="time"]:disabled {
-  background: #f8f9fa;
-  color: #95a5a6;
-  cursor: not-allowed;
-}
-
 .modal-section textarea {
   width: 100%;
   padding: 12px;
-  border: 2px solid #ecf0f1;
+  border: 2px solid #e0e0e0;
   border-radius: 8px;
-  font-family: inherit;
-  font-size: 14px;
-  resize: vertical;
-  transition: border-color 0.2s ease;
+  font-size: 16px;
+  transition: border-color 0.3s;
 }
 
+.modal-section input:focus,
 .modal-section textarea:focus {
   outline: none;
   border-color: #3498db;
 }
 
+.modal-section small {
+  display: block;
+  color: #7f8c8d;
+  font-size: 12px;
+  margin-top: 4px;
+  line-height: 1.3;
+}
+
+.modal-section textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* チェックボックス */
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 1.1rem;
   cursor: pointer;
+  margin-bottom: 0;
 }
 
 .checkbox-label input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
+  margin-right: 8px;
+  transform: scale(1.2);
 }
 
+/* ボタン */
 .modal-buttons {
   display: flex;
-  gap: 10px;
-  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
 }
 
-.btn-primary,
-.btn-secondary {
-  padding: 12px 24px;
+.btn-primary, .btn-secondary {
+  flex: 1;
+  padding: 12px 16px;
   border: none;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s;
 }
 
 .btn-primary {
@@ -450,85 +413,22 @@ body {
   color: white;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: #2980b9;
+}
+
+.btn-primary:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
 }
 
 .btn-secondary {
   background: #ecf0f1;
-  color: #7f8c8d;
+  color: #2c3e50;
 }
 
 .btn-secondary:hover {
   background: #d5dbdb;
-}
-
-/* ウェルカムモーダル */
-.welcome-modal {
-  text-align: center;
-}
-
-.welcome-modal h3 {
-  color: #2c3e50;
-  margin-bottom: 16px;
-}
-
-.welcome-modal p {
-  color: #7f8c8d;
-  margin-bottom: 30px;
-  font-size: 1rem;
-}
-
-/* チュートリアルモーダル */
-.tutorial-modal {
-  max-width: 350px;
-  text-align: center;
-}
-
-.tutorial-progress {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.progress-bar {
-  flex: 1;
-  height: 4px;
-  background: #ecf0f1;
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: #3498db;
-  transition: width 0.3s ease;
-}
-
-.progress-text {
-  font-size: 12px;
-  color: #7f8c8d;
-  font-weight: 600;
-}
-
-.tutorial-modal h3 {
-  color: #2c3e50;
-  margin-bottom: 16px;
-  font-size: 1.2rem;
-}
-
-.tutorial-modal p {
-  color: #7f8c8d;
-  margin-bottom: 30px;
-  font-size: 0.9rem;
-  line-height: 1.6;
-}
-
-.tutorial-buttons {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
 }
 
 /* サプリメント選択 */
@@ -539,14 +439,11 @@ body {
 }
 
 .supplement-option {
-  display: flex;
-  flex-direction: column;
   padding: 12px;
-  border: 2px solid #ecf0f1;
+  border: 2px solid #e0e0e0;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  align-items: flex-start;
+  transition: all 0.3s;
 }
 
 .supplement-option:hover {
@@ -554,19 +451,15 @@ body {
 }
 
 .supplement-option.recommended {
-  border-color: #e74c3c;
-  background: #fdf2f2;
+  border-color: #f39c12;
+  background: #fef9e7;
 }
 
 .option-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
-}
-
-.supplement-option input[type="checkbox"] {
-  margin: 0;
+  margin-bottom: 4px;
 }
 
 .supplement-name {
@@ -575,109 +468,338 @@ body {
 }
 
 .supplement-badge {
-  background: #e74c3c;
+  background: #f39c12;
   color: white;
-  font-size: 0.7rem;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
   font-weight: 600;
 }
 
-.supplement-option small {
-  color: #7f8c8d;
-  font-size: 0.75rem;
-  display: block;
-  margin: 0;
-}
-
 .store-link {
-  margin: 4px 0 0 0;
+  margin-top: 8px;
 }
 
 .store-link a {
   color: #3498db;
   text-decoration: none;
-  font-size: 0.8rem;
-  font-weight: 500;
-  transition: color 0.2s ease;
+  font-size: 12px;
 }
 
 .store-link a:hover {
-  color: #2980b9;
   text-decoration: underline;
 }
 
 .custom-supplement-input {
-  margin-top: 12px;
-  padding: 8px;
-  border: 1px solid #ecf0f1;
-  border-radius: 4px;
-  font-size: 0.9rem;
+  margin-top: 8px;
   width: 100%;
+  padding: 8px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+/* ウェルカムモーダル */
+.welcome-modal {
+  max-width: 450px;
+}
+
+.email-usage-notice {
+  background: #e3f2fd;
+  padding: 12px;
+  border-radius: 6px;
+  margin-top: 8px;
+}
+
+.email-usage-notice p {
+  font-size: 12px;
+  color: #1976d2;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.email-usage-notice p:last-child {
+  margin-bottom: 0;
+  color: #388e3c;
+  font-weight: 500;
+}
+
+/* プライバシー同意 */
+.privacy-consent-label {
+  display: flex;
+  align-items: flex-start;
+  cursor: pointer;
+  line-height: 1.4;
+  gap: 12px;
+}
+
+.privacy-consent-label input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin: 0;
+  position: relative;
+  appearance: none;
+  border: 2px solid #e0e0e0;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.privacy-consent-label input[type="checkbox"]:checked {
+  background: #3498db;
+  border-color: #3498db;
+}
+
+.privacy-consent-label input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  left: 4px;
+  top: 0px;
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.consent-text {
+  font-size: 14px;
+  color: #2c3e50;
+}
+
+.consent-text a {
+  color: #3498db;
+  text-decoration: none;
+}
+
+.consent-text a:hover {
+  text-decoration: underline;
+}
+
+/* チュートリアル */
+.tutorial-modal {
+  max-width: 420px;
+}
+
+.tutorial-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  background: #e0e0e0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #3498db;
+  transition: width 0.3s;
+}
+
+.progress-text {
+  font-size: 14px;
+  color: #7f8c8d;
+  font-weight: 600;
+}
+
+.tutorial-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+/* ログイン関連スタイル */
+.login-modal, .pin-modal {
+  max-width: 400px;
+}
+
+.login-modal p, .pin-modal p {
+  text-align: center;
+  color: #7f8c8d;
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+
+.pin-modal input[type="text"] {
+  text-align: center;
+  font-size: 24px;
+  letter-spacing: 8px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-weight: 600;
+}
+
+.error-message {
+  background: #fee;
+  border: 1px solid #fcc;
+  color: #c44;
+  padding: 12px;
+  border-radius: 6px;
+  margin: 12px 0;
+  text-align: center;
+  font-size: 14px;
+}
+
+.login-info {
+  text-align: center;
+  margin-top: 16px;
+}
+
+.login-info p {
+  font-size: 12px;
+  color: #7f8c8d;
+  margin-bottom: 8px;
+}
+
+.resend-pin-btn {
+  background: none;
+  border: none;
+  color: #3498db;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 0;
+}
+
+.resend-pin-btn:hover:not(:disabled) {
+  color: #2980b9;
+}
+
+.resend-pin-btn:disabled {
+  color: #bdc3c7;
+  cursor: not-allowed;
 }
 
 /* フッター */
 .app-footer {
-  margin-top: 40px;
-  background: #f8f9fa;
-  border-top: 1px solid #ecf0f1;
-  padding: 30px 0 15px 0;
+  background: #2c3e50;
+  color: white;
+  margin-top: 20px;
+  padding: 32px 20px 20px;
+  border-radius: 12px;
 }
 
 .footer-content {
-  max-width: 414px;
-  margin: 0 auto;
-  padding: 0 16px;
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   gap: 24px;
-}
-
-.footer-section {
-  text-align: center;
+  margin-bottom: 20px;
 }
 
 .footer-section h4 {
-  color: #2c3e50;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 16px;
   margin-bottom: 12px;
+  color: #ecf0f1;
 }
 
 .footer-section p {
-  color: #7f8c8d;
-  font-size: 0.85rem;
-  margin-bottom: 8px;
-  line-height: 1.5;
+  font-size: 14px;
+  color: #bdc3c7;
+  margin-bottom: 6px;
+  line-height: 1.4;
 }
 
 .footer-section a {
   color: #3498db;
   text-decoration: none;
-  transition: color 0.2s ease;
 }
 
 .footer-section a:hover {
-  color: #2980b9;
   text-decoration: underline;
 }
 
 .footer-bottom {
-  max-width: 414px;
-  margin: 20px auto 0;
-  padding: 16px;
-  border-top: 1px solid #ecf0f1;
+  border-top: 1px solid #34495e;
+  padding-top: 16px;
   text-align: center;
 }
 
 .footer-bottom p {
+  font-size: 12px;
   color: #95a5a6;
-  font-size: 0.75rem;
-  margin: 4px 0;
+  margin-bottom: 4px;
 }
 
-.footer-bottom p:last-child {
+/* レスポンシブ対応 */
+@media (max-width: 480px) {
+  .App {
+    padding: 8px;
+  }
+  
+  .calendar-container {
+    padding: 16px;
+  }
+  
+  .app-header h1 {
+    font-size: 28px;
+  }
+  
+  .modal-content {
+    padding: 20px;
+    margin: 10px;
+  }
+  
+  .footer-content {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+  
+  .settings-btn {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+}
+
+@media (max-width: 380px) {
+  .calendar-day {
+    font-size: 14px;
+  }
+  
+  .share-btn {
+    width: 45px;
+    height: 45px;
+    font-size: 18px;
+  }
+  
+  .modal-buttons {
+    flex-direction: column;
+  }
+}
+
+/* ログアウトセクション */
+.logout-section {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #e0e0e0;
+  text-align: center;
+}
+
+.logout-section .logout-btn {
+  background: none;
+  border: none;
   color: #7f8c8d;
-  font-style: italic;
-  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  margin-bottom: 8px;
+  transition: color 0.3s;
+}
+
+.logout-section .logout-btn:hover {
+  color: #e74c3c;
+}
+
+.logout-section small {
+  display: block;
+  color: #7f8c8d;
+  font-size: 12px;
+  line-height: 1.3;
 }
