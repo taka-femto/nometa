@@ -5,47 +5,52 @@ function App() {
   // 今日の日付を取得
   const today = new Date();
   
-  // 表示中の月と年の状態
+  // 状態管理
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
-  
-  // 服薬記録を保存する状態（月ごとに管理）
   const [takenDays, setTakenDays] = useState(new Map());
-  
-  // メモを保存する状態（月ごとに管理）
   const [memos, setMemos] = useState(new Map());
-  
-  // 服薬開始日
   const [startDate, setStartDate] = useState(null);
-  
-  // リマインダー設定
   const [reminderTime, setReminderTime] = useState('');
   const [reminderEnabled, setReminderEnabled] = useState(false);
-  
-  // ユーザー情報
   const [userName, setUserName] = useState('');
+  const [isLutevitaSelected, setIsLutevitaSelected] = useState(false);
+  const [isCustomSelected, setIsCustomSelected] = useState(false);
+  const [customSupplementName, setCustomSupplementName] = useState('');
   const [showWelcome, setShowWelcome] = useState(false);
-  
-  // チュートリアル状態
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
-  
-  // モーダルの状態
   const [showModal, setShowModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
   const [currentMemo, setCurrentMemo] = useState('');
-  
-  // 設定モーダルの状態
   const [showSettings, setShowSettings] = useState(false);
-  
-  // 初回起動時にローカルストレージからデータを読み込み
+
+  // 初回起動時にデータを読み込み
   React.useEffect(() => {
     // ユーザー名を読み込み
     const savedUserName = localStorage.getItem('nonda-username');
     if (savedUserName) {
       setUserName(savedUserName);
+      
+      // チュートリアル完了状況をチェック
+      const tutorialCompleted = localStorage.getItem('nonda-tutorial-completed');
+      if (!tutorialCompleted) {
+        setShowTutorial(true);
+        setTutorialStep(0);
+      }
     } else {
       setShowWelcome(true);
+    }
+    
+    // サプリ情報を読み込み
+    const savedLutevita = localStorage.getItem('nonda-lutevita') === 'true';
+    const savedCustom = localStorage.getItem('nonda-custom-supplement-enabled') === 'true';
+    const savedCustomName = localStorage.getItem('nonda-custom-supplement-name');
+    
+    setIsLutevitaSelected(savedLutevita);
+    setIsCustomSelected(savedCustom);
+    if (savedCustomName) {
+      setCustomSupplementName(savedCustomName);
     }
     
     // 服薬開始日を読み込み
@@ -90,28 +95,36 @@ function App() {
       setMemos(mapData);
     }
   }, []);
-  
-  // 月の日数を取得
+
+  // カレンダー計算
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-  
+
+  // 表示用のサプリ名を取得
+  const getDisplaySupplementName = () => {
+    const supplements = [];
+    if (isLutevitaSelected) {
+      supplements.push('ルテビタ');
+    }
+    if (isCustomSelected && customSupplementName) {
+      supplements.push(customSupplementName);
+    }
+    
+    if (supplements.length > 0) {
+      return supplements.join('・') + '';
+    }
+    return 'サプリメント';
+  };
+
   // 月の一意キーを生成
   const getMonthKey = (year, month) => `${year}-${month}`;
-  
-  // 現在表示中の月のキー
   const currentMonthKey = getMonthKey(currentYear, currentMonth);
-  
-  // 現在の月の服薬記録を取得
-  const getCurrentMonthTakenDays = () => {
-    return takenDays.get(currentMonthKey) || new Set();
-  };
-  
-  // 現在の月のメモを取得
-  const getCurrentMonthMemos = () => {
-    return memos.get(currentMonthKey) || new Map();
-  };
-  
-  // 総服薬日数を計算
+
+  // 現在の月のデータを取得
+  const getCurrentMonthTakenDays = () => takenDays.get(currentMonthKey) || new Set();
+  const getCurrentMonthMemos = () => memos.get(currentMonthKey) || new Map();
+
+  // 統計計算
   const getTotalTakenDays = () => {
     let total = 0;
     for (const monthTakenDays of takenDays.values()) {
@@ -119,45 +132,22 @@ function App() {
     }
     return total;
   };
-  
-  // トータル継続率を計算
-  const getTotalContinuationRate = () => {
-    if (!startDate) return 0;
-    const daysSinceStart = getDaysSinceStart();
-    const totalTakenDays = getTotalTakenDays();
-    return Math.round((totalTakenDays / daysSinceStart) * 100);
-  };
-  
-  // 服薬開始からの日数を計算
+
   const getDaysSinceStart = () => {
     if (!startDate) return 0;
     const today = new Date();
     const diffTime = today - startDate;
     return Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
   };
-  
-  // 励ましメッセージを取得
-  const getMotivationalMessage = () => {
+
+  const getTotalContinuationRate = () => {
+    if (!startDate) return 0;
     const daysSinceStart = getDaysSinceStart();
-    
-    if (daysSinceStart >= 90) {
-      return "研究では3ヶ月継続で多くの効果が報告されています。素晴らしい継続力です！";
-    } else if (daysSinceStart >= 60) {
-      return "2ヶ月継続おめでとうございます！体の変化を実感し始める時期です。";
-    } else if (daysSinceStart >= 30) {
-      return "1ヶ月継続達成！研究では30日で初期効果が現れると言われています。";
-    } else if (daysSinceStart >= 14) {
-      return "2週間継続中！習慣化まであと少しです。";
-    } else if (daysSinceStart >= 7) {
-      return "1週間継続おめでとうございます！良いスタートです。";
-    } else if (daysSinceStart >= 3) {
-      return "3日継続中！習慣化への第一歩です。";
-    } else {
-      return "服薬を開始しました。継続が効果の鍵です。";
-    }
+    const totalTakenDays = getTotalTakenDays();
+    return Math.round((totalTakenDays / daysSinceStart) * 100);
   };
-  
-  // 前の月に移動
+
+  // 月ナビゲーション
   const goToPreviousMonth = () => {
     if (currentMonth === 0) {
       setCurrentMonth(11);
@@ -166,8 +156,7 @@ function App() {
       setCurrentMonth(currentMonth - 1);
     }
   };
-  
-  // 次の月に移動
+
   const goToNextMonth = () => {
     if (currentMonth === 11) {
       setCurrentMonth(0);
@@ -176,35 +165,27 @@ function App() {
       setCurrentMonth(currentMonth + 1);
     }
   };
-  
-  // 今月に戻る
+
   const goToToday = () => {
     setCurrentMonth(today.getMonth());
     setCurrentYear(today.getFullYear());
   };
-  
-  // 月名
-  const monthNames = [
-    '1月', '2月', '3月', '4月', '5月', '6月',
-    '7月', '8月', '9月', '10月', '11月', '12月'
-  ];
-  
-  // 日付をクリックした時の処理
+
+  // モーダル操作
   const handleDayClick = (day) => {
     setSelectedDay(day);
     const currentMemos = getCurrentMonthMemos();
     setCurrentMemo(currentMemos.get(day) || '');
     setShowModal(true);
   };
-  
-  // モーダルを閉じる
+
   const closeModal = () => {
     setShowModal(false);
     setSelectedDay(null);
     setCurrentMemo('');
   };
-  
-  // 服薬記録とメモを保存
+
+  // データ保存
   const saveData = () => {
     const currentTakenDays = getCurrentMonthTakenDays();
     const currentMemos = getCurrentMonthMemos();
@@ -240,25 +221,24 @@ function App() {
     
     closeModal();
   };
-  
-  // ローカルストレージにデータを保存
+
   const saveToLocalStorage = (takenDaysMap, memosMap) => {
-    // 服薬記録を保存（SetをArrayに変換）
+    // 服薬記録を保存
     const takenDaysObj = {};
     for (const [key, value] of takenDaysMap.entries()) {
       takenDaysObj[key] = Array.from(value);
     }
     localStorage.setItem('nonda-taken-days', JSON.stringify(takenDaysObj));
     
-    // メモを保存（MapをObjectに変換）
+    // メモを保存
     const memosObj = {};
     for (const [key, value] of memosMap.entries()) {
       memosObj[key] = Object.fromEntries(value);
     }
     localStorage.setItem('nonda-memos', JSON.stringify(memosObj));
   };
-  
-  // 設定を保存
+
+  // 設定保存
   const saveSettings = () => {
     const dateInput = document.getElementById('start-date-input').value;
     if (dateInput) {
@@ -273,13 +253,25 @@ function App() {
       localStorage.setItem('nonda-username', nameInput.trim());
     }
     
+    // サプリ情報を保存
+    const lutevitaCheckbox = document.getElementById('lutevita-checkbox').checked;
+    const customCheckbox = document.getElementById('custom-checkbox').checked;
+    const customInput = document.getElementById('custom-supplement-input').value;
+    
+    setIsLutevitaSelected(lutevitaCheckbox);
+    setIsCustomSelected(customCheckbox);
+    setCustomSupplementName(customInput);
+    
+    localStorage.setItem('nonda-lutevita', lutevitaCheckbox.toString());
+    localStorage.setItem('nonda-custom-supplement-enabled', customCheckbox.toString());
+    localStorage.setItem('nonda-custom-supplement-name', customInput);
+    
     const timeInput = document.getElementById('reminder-time-input').value;
     const enabledInput = document.getElementById('reminder-enabled-checkbox').checked;
     
     setReminderTime(timeInput);
     setReminderEnabled(enabledInput);
     
-    // ローカルストレージに保存
     localStorage.setItem('nonda-reminder-time', timeInput);
     localStorage.setItem('nonda-reminder-enabled', enabledInput.toString());
     
@@ -291,8 +283,8 @@ function App() {
     
     setShowSettings(false);
   };
-  
-  // 初回ウェルカムメッセージの保存
+
+  // ウェルカム保存
   const saveWelcomeData = () => {
     const nameInput = document.getElementById('welcome-name-input').value;
     if (nameInput.trim()) {
@@ -300,7 +292,6 @@ function App() {
       localStorage.setItem('nonda-username', nameInput.trim());
       setShowWelcome(false);
       
-      // チュートリアルがまだ表示されていない場合は表示
       const tutorialCompleted = localStorage.getItem('nonda-tutorial-completed');
       if (!tutorialCompleted) {
         setShowTutorial(true);
@@ -308,25 +299,156 @@ function App() {
       }
     }
   };
-  
-  // チュートリアルを次のステップに進める
+
+  // リマインダー機能
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      return permission === 'granted';
+    }
+    return false;
+  };
+
+  const setupDailyReminder = async (time) => {
+    const hasPermission = await requestNotificationPermission();
+    if (!hasPermission) {
+      alert('通知を有効にするには、ブラウザの設定で通知を許可してください。');
+      return;
+    }
+    
+    clearDailyReminder();
+    
+    const intervalId = setInterval(() => {
+      const now = new Date();
+      const currentTime = now.getHours().toString().padStart(2, '0') + ':' + 
+                         now.getMinutes().toString().padStart(2, '0');
+      
+      if (currentTime === time) {
+        showNotification();
+      }
+    }, 60000);
+    
+    window.reminderInterval = intervalId;
+  };
+
+  const clearDailyReminder = () => {
+    if (window.reminderInterval) {
+      clearInterval(window.reminderInterval);
+      window.reminderInterval = null;
+    }
+  };
+
+  const showNotification = () => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('nonda - 服薬リマインダー', {
+        body: 'サプリメントを飲む時間です！',
+        icon: '/favicon.ico',
+        badge: '/favicon.ico'
+      });
+    }
+  };
+
+  // SNSシェア機能
+  const shareToTwitter = () => {
+    const daysSinceStart = getDaysSinceStart();
+    const totalTakenDays = getTotalTakenDays();
+    const continuationRate = getTotalContinuationRate();
+    
+    const text = `nondaで${daysSinceStart}日間サプリメント管理中！\n総服薬日数: ${totalTakenDays}日\n継続率: ${continuationRate}%\n\n健康的な習慣を継続しています✨\n\n#nonda #サプリメント #健康管理 #継続は力なり`;
+    
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+  };
+
+  const shareToFacebook = () => {
+    const daysSinceStart = getDaysSinceStart();
+    const totalTakenDays = getTotalTakenDays();
+    const continuationRate = getTotalContinuationRate();
+    
+    const text = `nondaでサプリメント管理を${daysSinceStart}日間継続中！総服薬日数${totalTakenDays}日、継続率${continuationRate}%を達成しました。健康的な習慣づくりを頑張っています！`;
+    
+    const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}&quote=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+  };
+
+  const generateShareImage = () => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    canvas.width = 1080;
+    canvas.height = 1080;
+    
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, '#667eea');
+    gradient.addColorStop(1, '#764ba2');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 72px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('nonda', canvas.width / 2, 200);
+    
+    ctx.font = '48px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText('サプリメント服薬記録', canvas.width / 2, 280);
+    
+    const daysSinceStart = getDaysSinceStart();
+    const totalTakenDays = getTotalTakenDays();
+    const continuationRate = getTotalContinuationRate();
+    
+    ctx.font = 'bold 64px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText(`${daysSinceStart}日間継続中`, canvas.width / 2, 450);
+    
+    ctx.font = '52px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText(`総服薬日数: ${totalTakenDays}日`, canvas.width / 2, 550);
+    ctx.fillText(`継続率: ${continuationRate}%`, canvas.width / 2, 630);
+    
+    ctx.font = '42px -apple-system, BlinkMacSystemFont, sans-serif';
+    const message = getMotivationalMessage();
+    const words = message.split('');
+    let line = '';
+    let y = 750;
+    
+    for (let i = 0; i < words.length; i++) {
+      const testLine = line + words[i];
+      const metrics = ctx.measureText(testLine);
+      const testWidth = metrics.width;
+      
+      if (testWidth > 900 && i > 0) {
+        ctx.fillText(line, canvas.width / 2, y);
+        line = words[i];
+        y += 50;
+      } else {
+        line = testLine;
+      }
+    }
+    ctx.fillText(line, canvas.width / 2, y);
+    
+    ctx.font = '36px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('#nonda #健康管理 #継続は力なり', canvas.width / 2, 950);
+    
+    const link = document.createElement('a');
+    link.download = `nonda-share-${new Date().getTime()}.png`;
+    link.href = canvas.toDataURL();
+    link.click();
+  };
+
+  // チュートリアル機能
   const nextTutorialStep = () => {
     if (tutorialStep < tutorialSteps.length - 1) {
       setTutorialStep(tutorialStep + 1);
     } else {
-      // チュートリアル完了
       setShowTutorial(false);
       localStorage.setItem('nonda-tutorial-completed', 'true');
     }
   };
-  
-  // チュートリアルをスキップ
+
   const skipTutorial = () => {
     setShowTutorial(false);
     localStorage.setItem('nonda-tutorial-completed', 'true');
   };
-  
-  // チュートリアルステップの定義
+
   const tutorialSteps = [
     {
       title: "ようこそ、nondaへ！",
@@ -349,171 +471,40 @@ function App() {
       buttonText: "始める"
     }
   ];
-  
-  // 通知許可を要求
-  const requestNotificationPermission = async () => {
-    if ('Notification' in window) {
-      const permission = await Notification.requestPermission();
-      return permission === 'granted';
-    }
-    return false;
-  };
-  
-  // 日次リマインダーを設定
-  const setupDailyReminder = async (time) => {
-    const hasPermission = await requestNotificationPermission();
-    if (!hasPermission) {
-      alert('通知を有効にするには、ブラウザの設定で通知を許可してください。');
-      return;
-    }
-    
-    // 既存のタイマーをクリア
-    clearDailyReminder();
-    
-    // 毎分チェックして、設定時間になったら通知
-    const intervalId = setInterval(() => {
-      const now = new Date();
-      const currentTime = now.getHours().toString().padStart(2, '0') + ':' + 
-                         now.getMinutes().toString().padStart(2, '0');
-      
-      if (currentTime === time) {
-        showNotification();
-      }
-    }, 60000); // 1分ごとにチェック
-    
-    // intervalIdを保存（実際のアプリではlocalStorageなどに保存）
-    window.reminderInterval = intervalId;
-  };
-  
-  // リマインダーをクリア
-  const clearDailyReminder = () => {
-    if (window.reminderInterval) {
-      clearInterval(window.reminderInterval);
-      window.reminderInterval = null;
-    }
-  };
-  
-  // 通知を表示
-  const showNotification = () => {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('nonda - 服薬リマインダー', {
-        body: 'サプリメントを飲む時間です！',
-        icon: '/favicon.ico',
-        badge: '/favicon.ico'
-      });
-    }
-  };
-  
-  // SNSシェア機能
-  const shareToTwitter = () => {
+
+  // 励ましメッセージを取得
+  const getMotivationalMessage = () => {
     const daysSinceStart = getDaysSinceStart();
-    const totalTakenDays = getTotalTakenDays();
-    const continuationRate = getTotalContinuationRate();
     
-    const text = `nondaで${daysSinceStart}日間サプリメント管理中！\n総服薬日数: ${totalTakenDays}日\n継続率: ${continuationRate}%\n\n健康的な習慣を継続しています✨\n\n#nonda #サプリメント #健康管理 #継続は力なり`;
-    
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank');
-  };
-  
-  const shareToFacebook = () => {
-    const daysSinceStart = getDaysSinceStart();
-    const totalTakenDays = getTotalTakenDays();
-    const continuationRate = getTotalContinuationRate();
-    
-    const text = `nondaでサプリメント管理を${daysSinceStart}日間継続中！総服薬日数${totalTakenDays}日、継続率${continuationRate}%を達成しました。健康的な習慣づくりを頑張っています！`;
-    
-    const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}&quote=${encodeURIComponent(text)}`;
-    window.open(url, '_blank');
-  };
-  
-  const generateShareImage = () => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    // Canvasのサイズ設定（Instagram正方形）
-    canvas.width = 1080;
-    canvas.height = 1080;
-    
-    // 背景色
-    ctx.fillStyle = '#667eea';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // グラデーション背景
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, '#667eea');
-    gradient.addColorStop(1, '#764ba2');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // タイトル
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 72px -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('nonda', canvas.width / 2, 200);
-    
-    // サブタイトル
-    ctx.font = '48px -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillText('サプリメント服薬記録', canvas.width / 2, 280);
-    
-    // 統計情報
-    const daysSinceStart = getDaysSinceStart();
-    const totalTakenDays = getTotalTakenDays();
-    const continuationRate = getTotalContinuationRate();
-    
-    ctx.font = 'bold 64px -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillText(`${daysSinceStart}日間継続中`, canvas.width / 2, 450);
-    
-    ctx.font = '52px -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillText(`総服薬日数: ${totalTakenDays}日`, canvas.width / 2, 550);
-    ctx.fillText(`継続率: ${continuationRate}%`, canvas.width / 2, 630);
-    
-    // 励ましメッセージ
-    ctx.font = '42px -apple-system, BlinkMacSystemFont, sans-serif';
-    const message = getMotivationalMessage();
-    const words = message.split('');
-    let line = '';
-    let y = 750;
-    
-    for (let i = 0; i < words.length; i++) {
-      const testLine = line + words[i];
-      const metrics = ctx.measureText(testLine);
-      const testWidth = metrics.width;
-      
-      if (testWidth > 900 && i > 0) {
-        ctx.fillText(line, canvas.width / 2, y);
-        line = words[i];
-        y += 50;
-      } else {
-        line = testLine;
-      }
+    if (daysSinceStart >= 90) {
+      return "研究では3ヶ月継続で多くの効果が報告されています。素晴らしい継続力です！";
+    } else if (daysSinceStart >= 60) {
+      return "2ヶ月継続おめでとうございます！体の変化を実感し始める時期です。";
+    } else if (daysSinceStart >= 30) {
+      return "1ヶ月継続達成！研究では30日で初期効果が現れると言われています。";
+    } else if (daysSinceStart >= 14) {
+      return "2週間継続中！習慣化まであと少しです。";
+    } else if (daysSinceStart >= 7) {
+      return "1週間継続おめでとうございます！良いスタートです。";
+    } else if (daysSinceStart >= 3) {
+      return "3日継続中！習慣化への第一歩です。";
+    } else {
+      return "服薬を開始しました。継続が効果の鍵です。";
     }
-    ctx.fillText(line, canvas.width / 2, y);
-    
-    // ハッシュタグ
-    ctx.font = '36px -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText('#nonda #健康管理 #継続は力なり', canvas.width / 2, 950);
-    
-    // 画像をダウンロード
-    const link = document.createElement('a');
-    link.download = `nonda-share-${new Date().getTime()}.png`;
-    link.href = canvas.toDataURL();
-    link.click();
   };
-  
-  // カレンダーの日付を生成
+
+  // カレンダー描画
   const renderCalendar = () => {
     const days = [];
     const currentTakenDays = getCurrentMonthTakenDays();
     const currentMemos = getCurrentMonthMemos();
     
-    // 空白のセルを追加（月の最初の日まで）
+    // 空白のセル
     for (let i = 0; i < firstDay; i++) {
       days.push(<div key={`empty-${i}`} className="calendar-day empty"></div>);
     }
     
-    // 日付のセルを追加
+    // 日付のセル
     for (let day = 1; day <= daysInMonth; day++) {
       const isTaken = currentTakenDays.has(day);
       const hasMemo = currentMemos.has(day);
@@ -536,12 +527,18 @@ function App() {
     
     return days;
   };
-  
+
+  // 月名
+  const monthNames = [
+    '1月', '2月', '3月', '4月', '5月', '6月',
+    '7月', '8月', '9月', '10月', '11月', '12月'
+  ];
+
   return (
     <div className="App">
       <header className="app-header">
         <h1>nonda</h1>
-        <p>サプリメント服薬記録</p>
+        <p>{getDisplaySupplementName()}服薬記録</p>
         {userName && <p className="welcome-text">こんにちは、{userName}さん！</p>}
         <button className="settings-btn" onClick={() => setShowSettings(true)}>
           ⚙️ 設定
@@ -614,7 +611,33 @@ function App() {
         </div>
       </main>
       
-      {/* モーダル */}
+      {/* フッター */}
+      <footer className="app-footer">
+        <div className="footer-content">
+          <div className="footer-section">
+            <h4>nonda</h4>
+            <p>サプリメント服薬管理アプリ</p>
+            <p>継続をサポートし、健康習慣を楽しく記録</p>
+          </div>
+          
+          <div className="footer-section">
+            <h4>運営会社</h4>
+            <p>株式会社YURU</p>
+            <p>
+              <a href="https://yuru-store.com/" target="_blank" rel="noopener noreferrer">
+                YURU store
+              </a>
+            </p>
+          </div>
+        </div>
+        
+        <div className="footer-bottom">
+          <p>&copy; 2024 YURU Inc. All rights reserved.</p>
+          <p>暮らしに、"ちょっといい"を。</p>
+        </div>
+      </footer>
+
+      {/* 日記録モーダル */}
       {showModal && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -653,68 +676,7 @@ function App() {
           </div>
         </div>
       )}
-      
-      {/* チュートリアルモーダル */}
-      {showTutorial && (
-        <div className="modal-overlay">
-          <div className="modal-content tutorial-modal">
-            <div className="tutorial-progress">
-              <div className="progress-bar">
-                <div 
-                  className="progress-fill" 
-                  style={{width: `${((tutorialStep + 1) / tutorialSteps.length) * 100}%`}}
-                ></div>
-              </div>
-              <span className="progress-text">
-                {tutorialStep + 1} / {tutorialSteps.length}
-              </span>
-            </div>
-            
-            <h3>{tutorialSteps[tutorialStep].title}</h3>
-            <p>{tutorialSteps[tutorialStep].content}</p>
-            
-            <div className="tutorial-buttons">
-              <button className="btn-secondary" onClick={skipTutorial}>
-                スキップ
-              </button>
-              <button className="btn-primary" onClick={nextTutorialStep}>
-                {tutorialSteps[tutorialStep].buttonText}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* 初回ウェルカムモーダル */}
-      {showWelcome && (
-        <div className="modal-overlay">
-          <div className="modal-content welcome-modal">
-            <h3>nondaへようこそ！</h3>
-            <p>サプリメントの服薬管理を始めましょう</p>
-            
-            <div className="modal-section">
-              <label htmlFor="welcome-name-input">お名前を教えてください</label>
-              <input
-                id="welcome-name-input"
-                type="text"
-                placeholder="お名前を入力してください"
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    saveWelcomeData();
-                  }
-                }}
-              />
-            </div>
-            
-            <div className="modal-buttons">
-              <button className="btn-primary" onClick={saveWelcomeData}>
-                始める
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
+
       {/* 設定モーダル */}
       {showSettings && (
         <div className="modal-overlay" onClick={() => setShowSettings(false)}>
@@ -740,6 +702,48 @@ function App() {
                 placeholder="お名前を入力してください"
               />
               <small>アプリでの表示名を設定できます。</small>
+            </div>
+            
+            <div className="modal-section">
+              <label>飲んでいるサプリメント（複数選択可）</label>
+              <div className="supplement-options">
+                <label className="supplement-option recommended">
+                  <div className="option-header">
+                    <input
+                      id="lutevita-checkbox"
+                      type="checkbox"
+                      defaultChecked={isLutevitaSelected}
+                    />
+                    <span className="supplement-name">ルテビタ</span>
+                    <span className="supplement-badge">おすすめ</span>
+                  </div>
+                  <small>目の健康をサポートするルテインサプリ</small>
+                  <div className="store-link">
+                    <a href="https://yuru-store.com/" target="_blank" rel="noopener noreferrer">
+                      ルテビタの詳細・ご購入はこちら →
+                    </a>
+                  </div>
+                </label>
+                
+                <label className="supplement-option">
+                  <div className="option-header">
+                    <input
+                      id="custom-checkbox"
+                      type="checkbox"
+                      defaultChecked={isCustomSelected}
+                    />
+                    <span className="supplement-name">その他のサプリメント</span>
+                  </div>
+                </label>
+                
+                <input
+                  id="custom-supplement-input"
+                  type="text"
+                  defaultValue={customSupplementName}
+                  placeholder="サプリメント名を入力してください"
+                  className="custom-supplement-input"
+                />
+              </div>
             </div>
             
             <div className="modal-section">
@@ -774,6 +778,67 @@ function App() {
               </button>
               <button className="btn-primary" onClick={saveSettings}>
                 保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 初回ウェルカムモーダル */}
+      {showWelcome && (
+        <div className="modal-overlay">
+          <div className="modal-content welcome-modal">
+            <h3>nondaへようこそ！</h3>
+            <p>サプリメントの服薬管理を始めましょう</p>
+            
+            <div className="modal-section">
+              <label htmlFor="welcome-name-input">お名前を教えてください</label>
+              <input
+                id="welcome-name-input"
+                type="text"
+                placeholder="お名前を入力してください"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    saveWelcomeData();
+                  }
+                }}
+              />
+            </div>
+            
+            <div className="modal-buttons">
+              <button className="btn-primary" onClick={saveWelcomeData}>
+                始める
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* チュートリアルモーダル */}
+      {showTutorial && (
+        <div className="modal-overlay">
+          <div className="modal-content tutorial-modal">
+            <div className="tutorial-progress">
+              <div className="progress-bar">
+                <div 
+                  className="progress-fill" 
+                  style={{width: `${((tutorialStep + 1) / tutorialSteps.length) * 100}%`}}
+                ></div>
+              </div>
+              <span className="progress-text">
+                {tutorialStep + 1} / {tutorialSteps.length}
+              </span>
+            </div>
+            
+            <h3>{tutorialSteps[tutorialStep].title}</h3>
+            <p>{tutorialSteps[tutorialStep].content}</p>
+            
+            <div className="tutorial-buttons">
+              <button className="btn-secondary" onClick={skipTutorial}>
+                スキップ
+              </button>
+              <button className="btn-primary" onClick={nextTutorialStep}>
+                {tutorialSteps[tutorialStep].buttonText}
               </button>
             </div>
           </div>
