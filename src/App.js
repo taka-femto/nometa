@@ -3,8 +3,7 @@ import './App.css';
 
 function App() {
   // Google Apps Script エンドポイント
-  const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwqlfdenxrpX0Wf6TqfMWIvJh1CcoTN6WKiAgSwIiPw91Xt52s5NQ9v3W5O754BPJGu/exec';
-  
+  const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxaYxGGp9JUzHdKJtfAd7RjWl1CLTN-6va1v4o_VOTIfFXb-EqHq0gBzBeNG5AkiPXm/exec';
   // 今日の日付を取得
   const today = new Date();
   
@@ -16,8 +15,9 @@ function App() {
   const [pinCode, setPinCode] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [isNewUser, setIsNewUser] = useState(false);
   
-  // 既存の状態管理
+  // アプリの状態管理
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [takenDays, setTakenDays] = useState(new Map());
@@ -30,7 +30,6 @@ function App() {
   const [isLutevitaSelected, setIsLutevitaSelected] = useState(false);
   const [isCustomSelected, setIsCustomSelected] = useState(false);
   const [customSupplementName, setCustomSupplementName] = useState('');
-  const [showWelcome, setShowWelcome] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [showModal, setShowModal] = useState(false);
@@ -40,9 +39,9 @@ function App() {
 
   // 認証状態をチェック
   const checkAuthStatus = () => {
-    const authToken = localStorage.getItem('nonda-auth-token');
-    const loginDate = localStorage.getItem('nonda-login-date');
-    const autoLogin = localStorage.getItem('nonda-auto-login');
+    const authToken = localStorage.getItem('nometa-auth-token');
+    const loginDate = localStorage.getItem('nometa-login-date');
+    const autoLogin = localStorage.getItem('nometa-auto-login');
     
     if (authToken && loginDate && autoLogin === 'true') {
       const loginDateTime = new Date(loginDate);
@@ -50,15 +49,13 @@ function App() {
       const daysDiff = Math.floor((now - loginDateTime) / (1000 * 60 * 60 * 24));
       
       if (daysDiff <= 30) {
-        // 30日以内なら自動ログイン
         setIsAuthenticated(true);
-        const savedEmail = localStorage.getItem('nonda-user-email');
-        const savedName = localStorage.getItem('nonda-username');
+        const savedEmail = localStorage.getItem('nometa-user-email');
+        const savedName = localStorage.getItem('nometa-username');
         if (savedEmail) setUserEmail(savedEmail);
         if (savedName) setUserName(savedName);
         return true;
       } else {
-        // 期限切れなので認証データを削除
         clearAuthData();
       }
     }
@@ -68,9 +65,9 @@ function App() {
 
   // 認証データをクリア
   const clearAuthData = () => {
-    localStorage.removeItem('nonda-auth-token');
-    localStorage.removeItem('nonda-login-date');
-    localStorage.removeItem('nonda-auto-login');
+    localStorage.removeItem('nometa-auth-token');
+    localStorage.removeItem('nometa-login-date');
+    localStorage.removeItem('nometa-auto-login');
     setIsAuthenticated(false);
     setAuthEmail('');
     setPinCode('');
@@ -82,8 +79,6 @@ function App() {
     setAuthError('');
     
     try {
-      console.log('PIN送信開始:', email);
-      
       const response = await fetch(API_ENDPOINT, {
         method: 'POST',
         headers: {
@@ -95,9 +90,7 @@ function App() {
         })
       });
       
-      console.log('レスポンス状況:', response.status);
       const data = await response.json();
-      console.log('レスポンスデータ:', data);
       
       if (data.success) {
         setAuthEmail(email);
@@ -108,8 +101,7 @@ function App() {
         setAuthError(data.message || 'PIN送信に失敗しました');
       }
     } catch (error) {
-      console.error('PIN送信エラー:', error);
-      setAuthError('ネットワークエラーが発生しました。Google Apps Scriptの設定を確認してください。');
+      setAuthError('ネットワークエラーが発生しました。');
     } finally {
       setLoginLoading(false);
     }
@@ -121,9 +113,6 @@ function App() {
     setAuthError('');
     
     try {
-      console.log('PIN認証開始:', authEmail, 'PIN:', pinCode);
-      
-      // 実際のAPI認証
       const response = await fetch(API_ENDPOINT, {
         method: 'POST',
         headers: {
@@ -136,56 +125,80 @@ function App() {
         })
       });
       
-      console.log('認証レスポンス状況:', response.status);
       const data = await response.json();
-      console.log('認証レスポンスデータ:', data);
       
       if (data.success) {
-        // 認証成功
         const authToken = 'auth-' + Date.now();
         const loginDate = new Date().toISOString();
         
-        localStorage.setItem('nonda-auth-token', authToken);
-        localStorage.setItem('nonda-login-date', loginDate);
-        localStorage.setItem('nonda-auto-login', 'true');
+        localStorage.setItem('nometa-auth-token', authToken);
+        localStorage.setItem('nometa-login-date', loginDate);
+        localStorage.setItem('nometa-auto-login', 'true');
         
         setIsAuthenticated(true);
         setShowPinInput(false);
         setPinCode('');
         
-        // ユーザーデータの同期
-        if (data.userData) {
+        // 新規ユーザーか既存ユーザーかを判定
+        if (data.userData && (data.userData.name || data.userData.startDate)) {
+          // 既存ユーザー
           syncUserData(data.userData);
+          setIsNewUser(false);
         } else {
-          // 新規ユーザーの場合
-          setShowWelcome(true);
+          // 新規ユーザー：直接チュートリアル開始
+          setIsNewUser(true);
+          setUserEmail(authEmail);
+          localStorage.setItem('nometa-user-email', authEmail);
+          setShowTutorial(true);
+          setTutorialStep(0);
         }
       } else {
         setAuthError(data.message || 'PIN認証に失敗しました');
       }
     } catch (error) {
-      console.error('PIN認証エラー:', error);
-      setAuthError('ネットワークエラーが発生しました。しばらくしてから再度お試しください。');
+      setAuthError('ネットワークエラーが発生しました。');
     } finally {
       setLoginLoading(false);
     }
   };
 
+  // ユーザー名をサーバーに送信
+  const updateUserNameOnServer = async (email, name) => {
+    try {
+      const response = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          action: 'updateUserName',
+          email: email,
+          name: name
+        })
+      });
+      
+      const data = await response.json();
+      console.log('ユーザー名更新レスポンス:', data);
+      
+      return data.success;
+    } catch (error) {
+      console.error('ユーザー名更新エラー:', error);
+      return false;
+    }
+  };
   // ユーザーデータを同期
   const syncUserData = (userData) => {
     if (userData.name) {
       setUserName(userData.name);
-      localStorage.setItem('nonda-username', userData.name);
+      localStorage.setItem('nometa-username', userData.name);
     }
     
     if (userData.email) {
       setUserEmail(userData.email);
-      localStorage.setItem('nonda-user-email', userData.email);
+      localStorage.setItem('nometa-user-email', userData.email);
     }
     
-    // その他のデータも同期可能
     if (userData.takenDays) {
-      // サーバーからの服薬記録を復元
       const mapData = new Map();
       for (const [key, value] of Object.entries(userData.takenDays)) {
         mapData.set(key, new Set(value));
@@ -195,7 +208,7 @@ function App() {
     
     if (userData.startDate) {
       setStartDate(new Date(userData.startDate));
-      localStorage.setItem('nonda-start-date', userData.startDate);
+      localStorage.setItem('nometa-start-date', userData.startDate);
     }
   };
 
@@ -204,7 +217,6 @@ function App() {
     if (window.confirm('ログアウトしますか？次回ログイン時にPIN認証が必要になります。')) {
       clearAuthData();
       setShowLogin(true);
-      // データは端末に残す（ローカルストレージは維持）
     }
   };
 
@@ -238,20 +250,21 @@ function App() {
 
   // 初回起動時にデータを読み込み
   React.useEffect(() => {
-    // 認証状態をチェック
     const isLoggedIn = checkAuthStatus();
     
     if (!isLoggedIn) {
-      // 未認証の場合はログイン画面を表示
       setShowLogin(true);
       return;
     }
     
-    // 認証済みの場合は既存のデータ読み込み処理
-    // サプリ情報を読み込み
-    const savedLutevita = localStorage.getItem('nonda-lutevita') === 'true';
-    const savedCustom = localStorage.getItem('nonda-custom-supplement-enabled') === 'true';
-    const savedCustomName = localStorage.getItem('nonda-custom-supplement-name');
+    loadUserData();
+  }, []);
+
+  // ユーザーデータを読み込む
+  const loadUserData = () => {
+    const savedLutevita = localStorage.getItem('nometa-lutevita') === 'true';
+    const savedCustom = localStorage.getItem('nometa-custom-supplement-enabled') === 'true';
+    const savedCustomName = localStorage.getItem('nometa-custom-supplement-name');
     
     setIsLutevitaSelected(savedLutevita);
     setIsCustomSelected(savedCustom);
@@ -259,15 +272,13 @@ function App() {
       setCustomSupplementName(savedCustomName);
     }
     
-    // 服薬開始日を読み込み
-    const savedStartDate = localStorage.getItem('nonda-start-date');
+    const savedStartDate = localStorage.getItem('nometa-start-date');
     if (savedStartDate) {
       setStartDate(new Date(savedStartDate));
     }
     
-    // リマインダー設定を読み込み
-    const savedReminderTime = localStorage.getItem('nonda-reminder-time');
-    const savedReminderEnabled = localStorage.getItem('nonda-reminder-enabled');
+    const savedReminderTime = localStorage.getItem('nometa-reminder-time');
+    const savedReminderEnabled = localStorage.getItem('nometa-reminder-enabled');
     if (savedReminderTime) {
       setReminderTime(savedReminderTime);
     }
@@ -278,8 +289,7 @@ function App() {
       }
     }
     
-    // 服薬記録を読み込み
-    const savedTakenDays = localStorage.getItem('nonda-taken-days');
+    const savedTakenDays = localStorage.getItem('nometa-taken-days');
     if (savedTakenDays) {
       const parsed = JSON.parse(savedTakenDays);
       const mapData = new Map();
@@ -289,8 +299,7 @@ function App() {
       setTakenDays(mapData);
     }
     
-    // メモを読み込み
-    const savedMemos = localStorage.getItem('nonda-memos');
+    const savedMemos = localStorage.getItem('nometa-memos');
     if (savedMemos) {
       const parsed = JSON.parse(savedMemos);
       const mapData = new Map();
@@ -300,14 +309,7 @@ function App() {
       }
       setMemos(mapData);
     }
-    
-    // チュートリアル状況をチェック
-    const tutorialCompleted = localStorage.getItem('nonda-tutorial-completed');
-    if (!tutorialCompleted && userName) {
-      setShowTutorial(true);
-      setTutorialStep(0);
-    }
-  }, []);
+  };
 
   // カレンダー計算
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -403,7 +405,6 @@ function App() {
     const currentTakenDays = getCurrentMonthTakenDays();
     const currentMemos = getCurrentMonthMemos();
     
-    // 服薬記録の更新
     const newTakenDays = new Set(currentTakenDays);
     const isTaken = document.getElementById('taken-checkbox').checked;
     
@@ -417,7 +418,6 @@ function App() {
     newTakenDaysMap.set(currentMonthKey, newTakenDays);
     setTakenDays(newTakenDaysMap);
     
-    // メモの更新
     const newMemos = new Map(currentMemos);
     if (currentMemo.trim()) {
       newMemos.set(selectedDay, currentMemo.trim());
@@ -429,26 +429,22 @@ function App() {
     newMemosMap.set(currentMonthKey, newMemos);
     setMemos(newMemosMap);
     
-    // ローカルストレージに保存
     saveToLocalStorage(newTakenDaysMap, newMemosMap);
-    
     closeModal();
   };
 
   const saveToLocalStorage = (takenDaysMap, memosMap) => {
-    // 服薬記録を保存
     const takenDaysObj = {};
     for (const [key, value] of takenDaysMap.entries()) {
       takenDaysObj[key] = Array.from(value);
     }
-    localStorage.setItem('nonda-taken-days', JSON.stringify(takenDaysObj));
+    localStorage.setItem('nometa-taken-days', JSON.stringify(takenDaysObj));
     
-    // メモを保存
     const memosObj = {};
     for (const [key, value] of memosMap.entries()) {
       memosObj[key] = Object.fromEntries(value);
     }
-    localStorage.setItem('nonda-memos', JSON.stringify(memosObj));
+    localStorage.setItem('nometa-memos', JSON.stringify(memosObj));
   };
 
   // 設定保存
@@ -457,29 +453,33 @@ function App() {
     if (dateInput) {
       const newStartDate = new Date(dateInput);
       setStartDate(newStartDate);
-      localStorage.setItem('nonda-start-date', newStartDate.toISOString());
+      localStorage.setItem('nometa-start-date', newStartDate.toISOString());
     }
     
     const nameInput = document.getElementById('username-input').value;
     const emailInput = document.getElementById('email-input').value;
     
     if (nameInput.trim()) {
-      setUserName(nameInput.trim());
-      localStorage.setItem('nonda-username', nameInput.trim());
+      const newName = nameInput.trim();
+      setUserName(newName);
+      localStorage.setItem('nometa-username', newName);
+      
+      // サーバーにも名前を送信
+      if (userEmail) {
+        updateUserNameOnServer(userEmail, newName);
+      }
     }
     
     if (emailInput.trim()) {
-      // 簡単なメール形式チェック
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(emailInput.trim())) {
         alert('正しいメールアドレスを入力してください。');
         return;
       }
       setUserEmail(emailInput.trim());
-      localStorage.setItem('nonda-user-email', emailInput.trim());
+      localStorage.setItem('nometa-user-email', emailInput.trim());
     }
     
-    // サプリ情報を保存
     const lutevitaCheckbox = document.getElementById('lutevita-checkbox').checked;
     const customCheckbox = document.getElementById('custom-checkbox').checked;
     const customInput = document.getElementById('custom-supplement-input').value;
@@ -488,9 +488,9 @@ function App() {
     setIsCustomSelected(customCheckbox);
     setCustomSupplementName(customInput);
     
-    localStorage.setItem('nonda-lutevita', lutevitaCheckbox.toString());
-    localStorage.setItem('nonda-custom-supplement-enabled', customCheckbox.toString());
-    localStorage.setItem('nonda-custom-supplement-name', customInput);
+    localStorage.setItem('nometa-lutevita', lutevitaCheckbox.toString());
+    localStorage.setItem('nometa-custom-supplement-enabled', customCheckbox.toString());
+    localStorage.setItem('nometa-custom-supplement-name', customInput);
     
     const timeInput = document.getElementById('reminder-time-input').value;
     const enabledInput = document.getElementById('reminder-enabled-checkbox').checked;
@@ -498,8 +498,8 @@ function App() {
     setReminderTime(timeInput);
     setReminderEnabled(enabledInput);
     
-    localStorage.setItem('nonda-reminder-time', timeInput);
-    localStorage.setItem('nonda-reminder-enabled', enabledInput.toString());
+    localStorage.setItem('nometa-reminder-time', timeInput);
+    localStorage.setItem('nometa-reminder-enabled', enabledInput.toString());
     
     if (enabledInput && timeInput) {
       setupDailyReminder(timeInput);
@@ -508,57 +508,6 @@ function App() {
     }
     
     setShowSettings(false);
-  };
-
-  // ウェルカム保存
-  const saveWelcomeData = () => {
-    const nameInput = document.getElementById('welcome-name-input').value;
-    const emailInput = document.getElementById('welcome-email-input').value;
-    const consentCheckbox = document.getElementById('privacy-consent-checkbox').checked;
-    
-    if (!nameInput.trim()) {
-      alert('お名前を入力してください。');
-      return;
-    }
-    
-    if (!emailInput.trim()) {
-      alert('メールアドレスを入力してください。');
-      return;
-    }
-    
-    // 簡単なメール形式チェック
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(emailInput.trim())) {
-      alert('正しいメールアドレスを入力してください。');
-      return;
-    }
-    
-    if (!consentCheckbox) {
-      alert('プライバシーポリシーへの同意が必要です。');
-      return;
-    }
-    
-    setUserName(nameInput.trim());
-    setUserEmail(emailInput.trim());
-    localStorage.setItem('nonda-username', nameInput.trim());
-    localStorage.setItem('nonda-user-email', emailInput.trim());
-    localStorage.setItem('nonda-privacy-consent', 'true');
-    localStorage.setItem('nonda-consent-date', new Date().toISOString());
-    
-    // メールアドレスをサーバーに送信（将来的に）
-    console.log('ユーザー登録:', { 
-      name: nameInput.trim(), 
-      email: emailInput.trim(),
-      consentDate: new Date().toISOString()
-    });
-    
-    setShowWelcome(false);
-    
-    const tutorialCompleted = localStorage.getItem('nonda-tutorial-completed');
-    if (!tutorialCompleted) {
-      setShowTutorial(true);
-      setTutorialStep(0);
-    }
   };
 
   // リマインダー機能
@@ -601,7 +550,7 @@ function App() {
 
   const showNotification = () => {
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('nonda - 服薬リマインダー', {
+      new Notification('nometa - 服薬リマインダー', {
         body: 'サプリメントを飲む時間です！',
         icon: '/favicon.ico',
         badge: '/favicon.ico'
@@ -615,7 +564,7 @@ function App() {
     const totalTakenDays = getTotalTakenDays();
     const continuationRate = getTotalContinuationRate();
     
-    const text = `nondaで${daysSinceStart}日間サプリメント管理中！\n総服薬日数: ${totalTakenDays}日\n継続率: ${continuationRate}%\n\n健康的な習慣を継続しています✨\n\n#nonda #サプリメント #健康管理 #継続は力なり`;
+    const text = `nometaで${daysSinceStart}日間サプリメント管理中！\n総服薬日数: ${totalTakenDays}日\n継続率: ${continuationRate}%\n\n健康的な習慣を継続しています✨\n\n#nometa #サプリメント #健康管理 #継続は力なり`;
     
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
@@ -626,7 +575,7 @@ function App() {
     const totalTakenDays = getTotalTakenDays();
     const continuationRate = getTotalContinuationRate();
     
-    const text = `nondaでサプリメント管理を${daysSinceStart}日間継続中！総服薬日数${totalTakenDays}日、継続率${continuationRate}%を達成しました。健康的な習慣づくりを頑張っています！`;
+    const text = `nometaでサプリメント管理を${daysSinceStart}日間継続中！総服薬日数${totalTakenDays}日、継続率${continuationRate}%を達成しました。健康的な習慣づくりを頑張っています！`;
     
     const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}&quote=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
@@ -648,7 +597,7 @@ function App() {
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 72px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('nonda', canvas.width / 2, 200);
+    ctx.fillText('nometa', canvas.width / 2, 200);
     
     ctx.font = '48px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.fillText('サプリメント服薬記録', canvas.width / 2, 280);
@@ -687,10 +636,10 @@ function App() {
     
     ctx.font = '36px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText('#nonda #健康管理 #継続は力なり', canvas.width / 2, 950);
+    ctx.fillText('#nometa #健康管理 #継続は力なり', canvas.width / 2, 950);
     
     const link = document.createElement('a');
-    link.download = `nonda-share-${new Date().getTime()}.png`;
+    link.download = `nometa-share-${new Date().getTime()}.png`;
     link.href = canvas.toDataURL();
     link.click();
   };
@@ -701,35 +650,56 @@ function App() {
       setTutorialStep(tutorialStep + 1);
     } else {
       setShowTutorial(false);
-      localStorage.setItem('nonda-tutorial-completed', 'true');
+      localStorage.setItem('nometa-tutorial-completed', 'true');
     }
   };
 
-  const skipTutorial = () => {
+  const skipTutorialToBasic = () => {
     setShowTutorial(false);
-    localStorage.setItem('nonda-tutorial-completed', 'true');
+    localStorage.setItem('nometa-tutorial-completed', 'true');
+  };
+
+  const skipToAdvanced = () => {
+    setTutorialStep(4);
   };
 
   const tutorialSteps = [
     {
-      title: "ようこそ、nondaへ！",
-      content: "nondaはサプリメントの服薬管理アプリです。継続を楽しくサポートします。",
-      buttonText: "次へ"
+      title: "🎉 nometaへようこそ！",
+      content: `${userName ? userName + 'さん、' : ''}nometaの基本的な使い方をご紹介します。\n\nまずはシンプルな機能から始めて、毎日の服薬習慣を楽しく身につけましょう！`,
+      buttonText: "使い方を見る",
+      type: "welcome"
     },
     {
-      title: "📅 日付をタップして記録",
-      content: "カレンダーの日付をタップすると、服薬記録とメモを入力できます。",
-      buttonText: "次へ"
+      title: "👋 お名前を教えてください",
+      content: "お名前を登録すると、アプリがもっとあなた専用になります。\n\n「こんにちは、○○さん！」のように、パーソナルな挨拶でお迎えします。",
+      buttonText: "名前を登録する",
+      type: "name"
     },
     {
-      title: "⚙️ 設定で開始日を登録",
-      content: "右上の設定ボタンから服薬開始日を設定すると、継続日数や励ましメッセージが表示されます。",
-      buttonText: "次へ"
+      title: "📅 サプリを飲んだらチェック！",
+      content: "カレンダーの日付をタップして、服薬記録をつけましょう。\n\n✅ チェックマークが付いて達成感UP\n📊 継続率が自動で計算される\n💪 励ましメッセージが表示される",
+      buttonText: "次へ",
+      type: "basic"
     },
     {
-      title: "🎉 成果をシェアしよう",
-      content: "継続の成果をSNSでシェアして、モチベーションを維持しましょう！",
-      buttonText: "始める"
+      title: "🎯 基本の使い方はこれだけ！",
+      content: "毎日チェックするだけで、あなたの継続力がどんどん見える化されます。\n\nシンプルだからこそ、続けられる。\nそれがnometaの魅力です！",
+      buttonText: "基本機能で始める",
+      type: "basic-complete",
+      hasAdvancedOption: true
+    },
+    {
+      title: "⚙️ 飲んでいるサプリを登録しよう",
+      content: "設定画面でサプリメントを登録すると：\n\n✨ ルテビタなど具体的な名前で記録\n🎯 より正確な管理ができる\n📝 専用のメモ機能も使える",
+      buttonText: "次へ",
+      type: "advanced"
+    },
+    {
+      title: "⏰ リマインダーで飲み忘れ防止",
+      content: "時間を設定すると、毎日決まった時間に通知が届きます。\n\n📱 スマホに優しく通知\n⏰ あなたの好きな時間に設定\n🔄 習慣化をサポート",
+      buttonText: "すべて完了！",
+      type: "advanced"
     }
   ];
 
@@ -803,7 +773,7 @@ function App() {
         {showLogin && (
           <div className="modal-overlay">
             <div className="modal-content login-modal">
-              <h3>nondaにログイン</h3>
+              <h3>nometaにログイン</h3>
               <p>メールアドレスに6桁のPINコードを送信します</p>
               
               <div className="modal-section">
@@ -819,6 +789,29 @@ function App() {
                     }
                   }}
                 />
+                
+                <div className="privacy-notice">
+                  <div className="privacy-notice-header">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="16" x2="12" y2="12"></line>
+                      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    個人情報の取扱いについて
+                  </div>
+                  <div className="privacy-notice-content">
+                    <p>ご入力いただいたメールアドレスは、以下の目的でのみ使用いたします：</p>
+                    <ul>
+                      <li>PINコード送信（ログイン認証用）</li>
+                      <li>継続サポートメッセージの配信</li>
+                      <li>YURUストアからの商品・サービスのご案内</li>
+                    </ul>
+                    <p>
+                      配信停止はいつでも可能です。<br/>
+                      詳細は <a href="https://yuru-store.com/policies/privacy-policy" target="_blank" rel="noopener noreferrer">プライバシーポリシー</a> をご確認ください。
+                    </p>
+                  </div>
+                </div>
               </div>
               
               {authError && (
@@ -922,7 +915,7 @@ function App() {
   return (
     <div className="App">
       <header className="app-header">
-        <h1>nonda</h1>
+        <h1>nometa</h1>
         <p>{getDisplaySupplementName()}服薬記録</p>
         {userName && <p className="welcome-text">こんにちは、{userName}さん！</p>}
         <button className="settings-btn" onClick={() => setShowSettings(true)}>
@@ -1004,7 +997,7 @@ function App() {
       <footer className="app-footer">
         <div className="footer-content">
           <div className="footer-section">
-            <h4>nonda</h4>
+            <h4>nometa</h4>
             <p>服薬管理アプリ</p>
             <p>毎日の習慣を健康に</p>
           </div>
@@ -1196,72 +1189,6 @@ function App() {
         </div>
       )}
 
-      {/* 初回ウェルカムモーダル */}
-      {showWelcome && (
-        <div className="modal-overlay">
-          <div className="modal-content welcome-modal">
-            <h3>nondaへようこそ！</h3>
-            <p>サプリメントの服薬管理を始めましょう</p>
-            
-            <div className="modal-section">
-              <label htmlFor="welcome-name-input">お名前を教えてください</label>
-              <input
-                id="welcome-name-input"
-                type="text"
-                placeholder="お名前を入力してください"
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    const emailInput = document.getElementById('welcome-email-input');
-                    if (emailInput) emailInput.focus();
-                  }
-                }}
-              />
-            </div>
-            
-            <div className="modal-section">
-              <label htmlFor="welcome-email-input">メールアドレス</label>
-              <input
-                id="welcome-email-input"
-                type="email"
-                placeholder="example@email.com"
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    saveWelcomeData();
-                  }
-                }}
-              />
-              <div className="email-usage-notice">
-                <p>ご入力いただいたメールアドレスは服薬継続サポートおよび、YURUストアからのご案内に使用いたします。</p>
-                <p>配信停止はいつでも可能です。</p>
-              </div>
-            </div>
-            
-            <div className="modal-section">
-              <label className="privacy-consent-label">
-                <input
-                  id="privacy-consent-checkbox"
-                  type="checkbox"
-                  required
-                />
-                <span className="checkmark"></span>
-                <span className="consent-text">
-                  <a href="https://yuru-store.com/policies/privacy-policy" target="_blank" rel="noopener noreferrer">
-                    プライバシーポリシー
-                  </a>
-                  に同意します
-                </span>
-              </label>
-            </div>
-            
-            <div className="modal-buttons">
-              <button className="btn-primary" onClick={saveWelcomeData}>
-                始める
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* チュートリアルモーダル */}
       {showTutorial && (
         <div className="modal-overlay">
@@ -1279,15 +1206,89 @@ function App() {
             </div>
             
             <h3>{tutorialSteps[tutorialStep].title}</h3>
-            <p>{tutorialSteps[tutorialStep].content}</p>
+            <div className="tutorial-content">
+              {tutorialSteps[tutorialStep].content.split('\n').map((line, index) => (
+                <p key={index}>{line}</p>
+              ))}
+            </div>
+            
+            {/* 名前登録ステップの場合 */}
+            {tutorialSteps[tutorialStep].type === 'name' && (
+              <div className="tutorial-name-input">
+                <input
+                  type="text"
+                  placeholder="お名前を入力してください"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && e.target.value.trim()) {
+                      const newName = e.target.value.trim();
+                      setUserName(newName);
+                      localStorage.setItem('nometa-username', newName);
+                      
+                      // サーバーにも名前を送信
+                      if (userEmail) {
+                        updateUserNameOnServer(userEmail, newName);
+                      }
+                      
+                      nextTutorialStep();
+                    }
+                  }}
+                />
+              </div>
+            )}
             
             <div className="tutorial-buttons">
-              <button className="btn-secondary" onClick={skipTutorial}>
-                スキップ
-              </button>
-              <button className="btn-primary" onClick={nextTutorialStep}>
-                {tutorialSteps[tutorialStep].buttonText}
-              </button>
+              {tutorialSteps[tutorialStep].type === 'basic-complete' ? (
+                <>
+                  <button className="btn-primary" onClick={skipTutorialToBasic}>
+                    {tutorialSteps[tutorialStep].buttonText}
+                  </button>
+                  <button className="btn-secondary advanced-btn" onClick={skipToAdvanced}>
+                    もっと使いこなしたい
+                  </button>
+                </>
+              ) : tutorialSteps[tutorialStep].type === 'name' ? (
+                <>
+                  <button 
+                    className="btn-secondary" 
+                    onClick={nextTutorialStep}
+                  >
+                    後で設定する
+                  </button>
+                  <button 
+                    className="btn-primary" 
+                    onClick={() => {
+                      const input = document.querySelector('.tutorial-name-input input');
+                      if (input && input.value.trim()) {
+                        const newName = input.value.trim();
+                        setUserName(newName);
+                        localStorage.setItem('nometa-username', newName);
+                        
+                        // サーバーにも名前を送信
+                        if (userEmail) {
+                          updateUserNameOnServer(userEmail, newName);
+                        }
+                        
+                        nextTutorialStep();
+                      } else {
+                        alert('お名前を入力してください');
+                      }
+                    }}
+                  >
+                    {tutorialSteps[tutorialStep].buttonText}
+                  </button>
+                </>
+              ) : (
+                <>
+                  {tutorialStep > 0 && (
+                    <button className="btn-secondary" onClick={skipTutorialToBasic}>
+                      基本機能で始める
+                    </button>
+                  )}
+                  <button className="btn-primary" onClick={nextTutorialStep}>
+                    {tutorialSteps[tutorialStep].buttonText}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
