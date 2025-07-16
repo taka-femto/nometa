@@ -357,12 +357,24 @@ body {
   border-radius: 8px;
   font-size: 16px;
   transition: border-color 0.3s;
+
+    /* PWA対応の追加 */
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: #ffffff;
+  position: relative;
+  z-index: 1;
 }
 
 .modal-section input:focus,
 .modal-section textarea:focus {
   outline: none;
   border-color: #3498db;
+
+  /* PWA でのズレ防止 */
+  transform: none;
+  zoom: 1;
 }
 
 .modal-section small {
@@ -919,5 +931,20 @@ body {
   
   .modal-buttons {
     flex-direction: column;
+  }
+}
+
+/* PWA専用の追加スタイル */
+@media (display-mode: standalone) {
+  .modal-section input[type="date"],
+  .modal-section input[type="time"] {
+    background-color: #f8f9fa;
+    border: 1px solid #d5dbdb;
+  }
+  
+  .modal-section input[type="date"]:focus,
+  .modal-section input[type="time"]:focus {
+    background-color: #ffffff;
+    border-color: #3498db;
   }
 }
