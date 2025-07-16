@@ -26,7 +26,7 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#3498db",
+  "theme_color": "#000000",
   "background_color": "#f8f9fa",
   "orientation": "portrait-primary",
   "categories": ["health", "lifestyle", "medical"],
