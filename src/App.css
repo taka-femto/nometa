@@ -953,50 +953,73 @@ body {
 
 /* 時間帯チェックボックスのコンテナ */
 .time-checkboxes {
-  display: flex;
-  gap: 8px; /* 12px → 8px に縮小 */
-  flex-wrap: nowrap;
-  justify-content: space-between; /* center → space-between に変更 */
-  align-items: center;
-  padding: 12px 16px; /* 16px → 12px 16px に調整 */
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr; /* flexからgridに変更 */
+  gap: 8px;
+  padding: 12px;
   background: #f8f9fa;
   border-radius: 8px;
   border: 1px solid #e0e0e0;
-  width: 100%; /* 幅を100%に固定 */
+  width: 100%;
+  align-items: center;
 }
 
 /* 個別の時間帯チェックボックス */
 .time-checkbox {
   display: flex;
   align-items: center;
-  gap: 3px; /* 4px → 3px に縮小 */
-  padding: 6px 8px; /* 8px 10px → 6px 8px に縮小 */
+  justify-content: center;
+  gap: 2px; /* 3px → 2px に縮小 */
+  padding: 6px 4px; /* 6px 8px → 6px 4px に縮小 */
   background: white;
   border: 2px solid #e0e0e0;
-  border-radius: 6px; /* 8px → 6px に縮小 */
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.3s;
-  flex: 1; /* 均等幅に */
-  justify-content: center;
-  flex-shrink: 0;
-  min-width: 0; /* min-width削除 */
+  min-height: 36px; /* 高さを統一 */
+  box-sizing: border-box;
 }
 
 .time-checkbox label {
   margin: 0;
-  font-size: 12px; /* 14px → 12px に縮小 */
+  font-size: 11px; /* 12px → 11px に縮小 */
   font-weight: 500;
   color: #2c3e50;
   cursor: pointer;
   white-space: nowrap;
+  text-align: center;
 }
 
 .time-checkbox input[type="checkbox"] {
   margin: 0;
-  width: 16px; /* 18px → 16px に縮小 */
-  height: 16px;
+  width: 14px; /* 16px → 14px に縮小 */
+  height: 14px;
   cursor: pointer;
   accent-color: #3498db;
+  flex-shrink: 0;
+}
+
+/* モバイル専用調整 */
+@media (max-width: 480px) {
+  .time-checkboxes {
+    gap: 6px;
+    padding: 10px;
+  }
+  
+  .time-checkbox {
+    gap: 1px;
+    padding: 5px 2px;
+    min-height: 32px;
+  }
+  
+  .time-checkbox label {
+    font-size: 10px;
+  }
+  
+  .time-checkbox input[type="checkbox"] {
+    width: 12px;
+    height: 12px;
+  }
 }
 
 /* チェックされた状態のスタイル */
