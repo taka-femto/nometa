@@ -453,14 +453,14 @@ body {
   flex-shrink: 0;
 }
 
-/* 4番目と5番目のチェックボックスを2段目に配置（真ん中は空き） */
+/* 4番目と5番目のチェックボックスを2段目に配置（右は空き） */
 .time-checkbox:nth-child(4) {
   grid-column: 1 / 2;
   grid-row: 2 / 3;
 }
 
 .time-checkbox:nth-child(5) {
-  grid-column: 3 / 4;
+  grid-column: 2 / 3;
   grid-row: 2 / 3;
 }
 
