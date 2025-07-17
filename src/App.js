@@ -42,7 +42,8 @@ function App() {
     morning: false,
     noon: false,
     evening: false,
-    bedtime: false
+    bedtime: false,
+    other: false
   });
 
   // 認証状態をチェック
@@ -282,7 +283,8 @@ function App() {
             morning: true,
             noon: false,
             evening: false,
-            bedtime: false
+            bedtime: false,
+            other: false
           });
         });
         mapData.set(key, convertedValue);
@@ -290,7 +292,15 @@ function App() {
         // 既に新形式の場合
         const convertedValue = new Map();
         for (const [day, timeChecks] of Object.entries(value)) {
-          convertedValue.set(parseInt(day), timeChecks);
+          // otherフィールドが存在しない場合は追加
+          const updatedTimeChecks = {
+            morning: timeChecks.morning || false,
+            noon: timeChecks.noon || false,
+            evening: timeChecks.evening || false,
+            bedtime: timeChecks.bedtime || false,
+            other: timeChecks.other || false
+          };
+          convertedValue.set(parseInt(day), updatedTimeChecks);
         }
         mapData.set(key, convertedValue);
       }
@@ -382,7 +392,7 @@ function App() {
     if (!dayData) return false;
     
     // どれか1つでもチェックされていれば服薬済み
-    return dayData.morning || dayData.noon || dayData.evening || dayData.bedtime;
+    return dayData.morning || dayData.noon || dayData.evening || dayData.bedtime || dayData.other;
   };
 
   // 統計計算
@@ -390,7 +400,7 @@ function App() {
     let total = 0;
     for (const monthTakenDays of takenDays.values()) {
       for (const dayData of monthTakenDays.values()) {
-        if (dayData.morning || dayData.noon || dayData.evening || dayData.bedtime) {
+        if (dayData.morning || dayData.noon || dayData.evening || dayData.bedtime || dayData.other) {
           total++;
         }
       }
@@ -452,7 +462,8 @@ function App() {
         morning: false,
         noon: false,
         evening: false,
-        bedtime: false
+        bedtime: false,
+        other: false
       });
     }
     
@@ -467,7 +478,8 @@ function App() {
       morning: false,
       noon: false,
       evening: false,
-      bedtime: false
+      bedtime: false,
+      other: false
     });
   };
 
@@ -481,13 +493,15 @@ function App() {
     const noonCheck = document.getElementById('noon-check').checked;
     const eveningCheck = document.getElementById('evening-check').checked;
     const bedtimeCheck = document.getElementById('bedtime-check').checked;
+    const otherCheck = document.getElementById('other-check').checked;
     
     const newTakenDays = new Map(currentTakenDays);
     newTakenDays.set(selectedDay, {
       morning: morningCheck,
       noon: noonCheck,
       evening: eveningCheck,
-      bedtime: bedtimeCheck
+      bedtime: bedtimeCheck,
+      other: otherCheck
     });
     
     const newTakenDaysMap = new Map(takenDays);
@@ -758,7 +772,7 @@ function App() {
     },
     {
       title: "📅 サプリを飲んだらチェック！",
-      content: "カレンダーの日付をタップして、服薬記録をつけましょう。\n\n✅ 朝・昼・夕・寝る前の時間帯別にチェック可能\n📊 継続率が自動で計算される\n💪 励ましメッセージが表示される",
+      content: "カレンダーの日付をタップして、服薬記録をつけましょう。\n\n✅ 朝・昼・夕・寝る前・その他の時間帯別にチェック可能\n📊 継続率が自動で計算される\n💪 励ましメッセージが表示される",
       buttonText: "次へ",
       type: "basic"
     },
@@ -1044,7 +1058,7 @@ function App() {
             )}
             
             <div className="monthly-stats">
-              <p>今月の服薬日数: {Array.from(getCurrentMonthTakenDays().values()).filter(dayData => dayData.morning || dayData.noon || dayData.evening || dayData.bedtime).length}日 / {daysInMonth}日</p>
+              <p>今月の服薬日数: {Array.from(getCurrentMonthTakenDays().values()).filter(dayData => dayData.morning || dayData.noon || dayData.evening || dayData.bedtime || dayData.other).length}日 / {daysInMonth}日</p>
             </div>
           </div>
           
@@ -1144,6 +1158,14 @@ function App() {
                     defaultChecked={currentTimeChecks.bedtime}
                   />
                   <label htmlFor="bedtime-check">寝る前</label>
+                </div>
+                <div className="time-checkbox">
+                  <input
+                    id="other-check"
+                    type="checkbox"
+                    defaultChecked={currentTimeChecks.other}
+                  />
+                  <label htmlFor="other-check">その他</label>
                 </div>
               </div>
             </div>

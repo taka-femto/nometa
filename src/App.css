@@ -357,8 +357,6 @@ body {
   border-radius: 8px;
   font-size: 16px;
   transition: border-color 0.3s;
-
-    /* PWA対応の追加 */
   box-sizing: border-box;
   -webkit-appearance: none;
   appearance: none;
@@ -371,8 +369,6 @@ body {
 .modal-section textarea:focus {
   outline: none;
   border-color: #3498db;
-
-  /* PWA でのズレ防止 */
   transform: none;
   zoom: 1;
 }
@@ -401,6 +397,90 @@ body {
 .checkbox-label input[type="checkbox"] {
   margin-right: 8px;
   transform: scale(1.2);
+}
+
+/* 時間帯別チェックボックス - 2段レイアウト（3-2配置）対応 */
+.time-checkboxes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 8px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.time-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 6px;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.time-checkbox:hover {
+  border-color: #3498db;
+  background: #f8f9fa;
+}
+
+.time-checkbox label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #2c3e50;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.time-checkbox input[type="checkbox"] {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #3498db;
+  flex-shrink: 0;
+}
+
+/* 4番目と5番目のチェックボックスを2段目に配置 */
+.time-checkbox:nth-child(4) {
+  grid-column: 1 / 2;
+  grid-row: 2 / 3;
+}
+
+.time-checkbox:nth-child(5) {
+  grid-column: 3 / 4;
+  grid-row: 2 / 3;
+}
+
+/* チェックされた状態のスタイル */
+.time-checkbox:has(input[type="checkbox"]:checked) {
+  background: #3498db;
+  border-color: #3498db;
+}
+
+.time-checkbox:has(input[type="checkbox"]:checked) label {
+  color: white;
+  font-weight: 600;
+}
+
+/* :has() セレクターに対応していないブラウザ用のフォールバック */
+@supports not (selector(:has(input))) {
+  .time-checkbox input[type="checkbox"]:checked + label {
+    color: #3498db;
+    font-weight: 600;
+  }
 }
 
 /* ボタン */
@@ -888,6 +968,28 @@ body {
     margin: 10px;
   }
   
+  /* 時間帯チェックボックス - モバイル調整 */
+  .time-checkboxes {
+    gap: 6px;
+    padding: 10px;
+    max-width: 300px;
+  }
+  
+  .time-checkbox {
+    gap: 3px;
+    padding: 6px 4px;
+    min-height: 40px;
+  }
+  
+  .time-checkbox label {
+    font-size: 11px;
+  }
+  
+  .time-checkbox input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+  }
+  
   /* スマホ専用フッターレイアウト */
   .footer-content {
     flex-direction: column;
@@ -932,6 +1034,28 @@ body {
   .modal-buttons {
     flex-direction: column;
   }
+  
+  /* 極小画面での時間帯チェックボックス調整 */
+  .time-checkboxes {
+    gap: 4px;
+    padding: 8px;
+    max-width: 280px;
+  }
+  
+  .time-checkbox {
+    gap: 2px;
+    padding: 4px 2px;
+    min-height: 36px;
+  }
+  
+  .time-checkbox label {
+    font-size: 10px;
+  }
+  
+  .time-checkbox input[type="checkbox"] {
+    width: 12px;
+    height: 12px;
+  }
 }
 
 /* PWA専用の追加スタイル */
@@ -946,142 +1070,5 @@ body {
   .modal-section input[type="time"]:focus {
     background-color: #ffffff;
     border-color: #3498db;
-  }
-}
-
-/* 時間帯別チェックボックス用スタイル - 既存CSSに追加 */
-
-/* 時間帯チェックボックスのコンテナ */
-.time-checkboxes {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr; /* flexからgridに変更 */
-  gap: 8px;
-  padding: 12px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #e0e0e0;
-  width: 100%;
-  align-items: center;
-}
-
-/* 個別の時間帯チェックボックス */
-.time-checkbox {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px; /* 3px → 2px に縮小 */
-  padding: 6px 4px; /* 6px 8px → 6px 4px に縮小 */
-  background: white;
-  border: 2px solid #e0e0e0;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s;
-  min-height: 36px; /* 高さを統一 */
-  box-sizing: border-box;
-}
-
-.time-checkbox label {
-  margin: 0;
-  font-size: 11px; /* 12px → 11px に縮小 */
-  font-weight: 500;
-  color: #2c3e50;
-  cursor: pointer;
-  white-space: nowrap;
-  text-align: center;
-}
-
-.time-checkbox input[type="checkbox"] {
-  margin: 0;
-  width: 14px; /* 16px → 14px に縮小 */
-  height: 14px;
-  cursor: pointer;
-  accent-color: #3498db;
-  flex-shrink: 0;
-}
-
-/* モバイル専用調整 */
-@media (max-width: 480px) {
-  .time-checkboxes {
-    gap: 6px;
-    padding: 10px;
-  }
-  
-  .time-checkbox {
-    gap: 1px;
-    padding: 5px 2px;
-    min-height: 32px;
-  }
-  
-  .time-checkbox label {
-    font-size: 10px;
-  }
-  
-  .time-checkbox input[type="checkbox"] {
-    width: 12px;
-    height: 12px;
-  }
-}
-
-/* チェックされた状態のスタイル */
-.time-checkbox:has(input[type="checkbox"]:checked) {
-  background: #3498db;
-  border-color: #3498db;
-}
-
-.time-checkbox:has(input[type="checkbox"]:checked) label {
-  color: white;
-  font-weight: 600;
-}
-
-/* モバイル対応 */
-@media (max-width: 480px) {
-  .time-checkboxes {
-    gap: 12px;
-    padding: 12px;
-  }
-  
-  .time-checkbox {
-    gap: 4px;
-    padding: 6px 10px;
-    min-width: 60px;
-  }
-  
-  .time-checkbox input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-  }
-  
-  .time-checkbox label {
-    font-size: 13px;
-  }
-}
-
-@media (max-width: 380px) {
-  .time-checkboxes {
-    gap: 8px;
-    padding: 10px;
-  }
-  
-  .time-checkbox {
-    gap: 3px;
-    padding: 5px 8px;
-    min-width: 55px;
-  }
-  
-  .time-checkbox input[type="checkbox"] {
-    width: 14px;
-    height: 14px;
-  }
-  
-  .time-checkbox label {
-    font-size: 12px;
-  }
-}
-
-/* :has() セレクターに対応していないブラウザ用のフォールバック */
-@supports not (selector(:has(input))) {
-  .time-checkbox input[type="checkbox"]:checked + label {
-    color: #3498db;
-    font-weight: 600;
   }
 }
