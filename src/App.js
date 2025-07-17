@@ -37,6 +37,14 @@ function App() {
   const [currentMemo, setCurrentMemo] = useState('');
   const [showSettings, setShowSettings] = useState(false);
 
+  // 時間帯別チェック用の状態
+  const [currentTimeChecks, setCurrentTimeChecks] = useState({
+    morning: false,
+    noon: false,
+    evening: false,
+    bedtime: false
+  });
+
   // 認証状態をチェック
   const checkAuthStatus = () => {
     const authToken = localStorage.getItem('nometa-auth-token');
@@ -186,6 +194,7 @@ function App() {
       return false;
     }
   };
+
   // ユーザーデータを同期
   const syncUserData = (userData) => {
     if (userData.name) {
@@ -201,7 +210,7 @@ function App() {
     if (userData.takenDays) {
       const mapData = new Map();
       for (const [key, value] of Object.entries(userData.takenDays)) {
-        mapData.set(key, new Set(value));
+        mapData.set(key, value);
       }
       setTakenDays(mapData);
     }
@@ -260,6 +269,36 @@ function App() {
     loadUserData();
   }, []);
 
+  // 既存データを新形式に変換
+  const convertLegacyData = (savedTakenDays) => {
+    const mapData = new Map();
+    
+    for (const [key, value] of Object.entries(savedTakenDays)) {
+      if (Array.isArray(value)) {
+        // 既存の配列形式を新形式に変換
+        const convertedValue = new Map();
+        value.forEach(day => {
+          convertedValue.set(day, {
+            morning: true,
+            noon: false,
+            evening: false,
+            bedtime: false
+          });
+        });
+        mapData.set(key, convertedValue);
+      } else {
+        // 既に新形式の場合
+        const convertedValue = new Map();
+        for (const [day, timeChecks] of Object.entries(value)) {
+          convertedValue.set(parseInt(day), timeChecks);
+        }
+        mapData.set(key, convertedValue);
+      }
+    }
+    
+    return mapData;
+  };
+
   // ユーザーデータを読み込む
   const loadUserData = () => {
     const savedLutevita = localStorage.getItem('nometa-lutevita') === 'true';
@@ -292,10 +331,7 @@ function App() {
     const savedTakenDays = localStorage.getItem('nometa-taken-days');
     if (savedTakenDays) {
       const parsed = JSON.parse(savedTakenDays);
-      const mapData = new Map();
-      for (const [key, value] of Object.entries(parsed)) {
-        mapData.set(key, new Set(value));
-      }
+      const mapData = convertLegacyData(parsed);
       setTakenDays(mapData);
     }
     
@@ -336,14 +372,28 @@ function App() {
   const currentMonthKey = getMonthKey(currentYear, currentMonth);
 
   // 現在の月のデータを取得
-  const getCurrentMonthTakenDays = () => takenDays.get(currentMonthKey) || new Set();
+  const getCurrentMonthTakenDays = () => takenDays.get(currentMonthKey) || new Map();
   const getCurrentMonthMemos = () => memos.get(currentMonthKey) || new Map();
+
+  // 日付の服薬チェック状態を取得
+  const getDayTakenStatus = (day) => {
+    const currentTakenDays = getCurrentMonthTakenDays();
+    const dayData = currentTakenDays.get(day);
+    if (!dayData) return false;
+    
+    // どれか1つでもチェックされていれば服薬済み
+    return dayData.morning || dayData.noon || dayData.evening || dayData.bedtime;
+  };
 
   // 統計計算
   const getTotalTakenDays = () => {
     let total = 0;
     for (const monthTakenDays of takenDays.values()) {
-      total += monthTakenDays.size;
+      for (const dayData of monthTakenDays.values()) {
+        if (dayData.morning || dayData.noon || dayData.evening || dayData.bedtime) {
+          total++;
+        }
+      }
     }
     return total;
   };
@@ -391,6 +441,21 @@ function App() {
     setSelectedDay(day);
     const currentMemos = getCurrentMonthMemos();
     setCurrentMemo(currentMemos.get(day) || '');
+    
+    // 現在の時間帯チェック状態を設定
+    const currentTakenDays = getCurrentMonthTakenDays();
+    const dayData = currentTakenDays.get(day);
+    if (dayData) {
+      setCurrentTimeChecks(dayData);
+    } else {
+      setCurrentTimeChecks({
+        morning: false,
+        noon: false,
+        evening: false,
+        bedtime: false
+      });
+    }
+    
     setShowModal(true);
   };
 
@@ -398,6 +463,12 @@ function App() {
     setShowModal(false);
     setSelectedDay(null);
     setCurrentMemo('');
+    setCurrentTimeChecks({
+      morning: false,
+      noon: false,
+      evening: false,
+      bedtime: false
+    });
   };
 
   // データ保存
@@ -405,14 +476,19 @@ function App() {
     const currentTakenDays = getCurrentMonthTakenDays();
     const currentMemos = getCurrentMonthMemos();
     
-    const newTakenDays = new Set(currentTakenDays);
-    const isTaken = document.getElementById('taken-checkbox').checked;
+    // 時間帯チェック状態を取得
+    const morningCheck = document.getElementById('morning-check').checked;
+    const noonCheck = document.getElementById('noon-check').checked;
+    const eveningCheck = document.getElementById('evening-check').checked;
+    const bedtimeCheck = document.getElementById('bedtime-check').checked;
     
-    if (isTaken) {
-      newTakenDays.add(selectedDay);
-    } else {
-      newTakenDays.delete(selectedDay);
-    }
+    const newTakenDays = new Map(currentTakenDays);
+    newTakenDays.set(selectedDay, {
+      morning: morningCheck,
+      noon: noonCheck,
+      evening: eveningCheck,
+      bedtime: bedtimeCheck
+    });
     
     const newTakenDaysMap = new Map(takenDays);
     newTakenDaysMap.set(currentMonthKey, newTakenDays);
@@ -436,7 +512,11 @@ function App() {
   const saveToLocalStorage = (takenDaysMap, memosMap) => {
     const takenDaysObj = {};
     for (const [key, value] of takenDaysMap.entries()) {
-      takenDaysObj[key] = Array.from(value);
+      const dayObj = {};
+      for (const [day, timeChecks] of value.entries()) {
+        dayObj[day] = timeChecks;
+      }
+      takenDaysObj[key] = dayObj;
     }
     localStorage.setItem('nometa-taken-days', JSON.stringify(takenDaysObj));
     
@@ -678,13 +758,13 @@ function App() {
     },
     {
       title: "📅 サプリを飲んだらチェック！",
-      content: "カレンダーの日付をタップして、服薬記録をつけましょう。\n\n✅ チェックマークが付いて達成感UP\n📊 継続率が自動で計算される\n💪 励ましメッセージが表示される",
+      content: "カレンダーの日付をタップして、服薬記録をつけましょう。\n\n✅ 朝・昼・夕・寝る前の時間帯別にチェック可能\n📊 継続率が自動で計算される\n💪 励ましメッセージが表示される",
       buttonText: "次へ",
       type: "basic"
     },
     {
       title: "🎯 基本の使い方はこれだけ！",
-      content: "毎日チェックするだけで、あなたの継続力がどんどん見える化されます。\n\nシンプルだからこそ、続けられる。\nそれがnometaの魅力です！",
+      content: "時間帯別チェックで、より詳細な服薬管理ができます。\n\nどの時間帯でも1つでもチェックすれば、その日は服薬完了です！",
       buttonText: "基本機能で始める",
       type: "basic-complete",
       hasAdvancedOption: true
@@ -737,7 +817,7 @@ function App() {
     
     // 日付のセル
     for (let day = 1; day <= daysInMonth; day++) {
-      const isTaken = currentTakenDays.has(day);
+      const isTaken = getDayTakenStatus(day);
       const hasMemo = currentMemos.has(day);
       const isToday = day === today.getDate() && 
                      currentMonth === today.getMonth() && 
@@ -964,7 +1044,7 @@ function App() {
             )}
             
             <div className="monthly-stats">
-              <p>今月の服薬日数: {getCurrentMonthTakenDays().size}日 / {daysInMonth}日</p>
+              <p>今月の服薬日数: {Array.from(getCurrentMonthTakenDays().values()).filter(dayData => dayData.morning || dayData.noon || dayData.evening || dayData.bedtime).length}日 / {daysInMonth}日</p>
             </div>
           </div>
           
@@ -1031,14 +1111,41 @@ function App() {
             <h3>{currentYear}年{monthNames[currentMonth]}{selectedDay}日</h3>
             
             <div className="modal-section">
-              <label className="checkbox-label">
-                <input
-                  id="taken-checkbox"
-                  type="checkbox"
-                  defaultChecked={getCurrentMonthTakenDays().has(selectedDay)}
-                />
-                服薬チェック
-              </label>
+              <label>飲めたチェック</label>
+              <div className="time-checkboxes">
+                <div className="time-checkbox">
+                  <input
+                    id="morning-check"
+                    type="checkbox"
+                    defaultChecked={currentTimeChecks.morning}
+                  />
+                  <label htmlFor="morning-check">朝</label>
+                </div>
+                <div className="time-checkbox">
+                  <input
+                    id="noon-check"
+                    type="checkbox"
+                    defaultChecked={currentTimeChecks.noon}
+                  />
+                  <label htmlFor="noon-check">昼</label>
+                </div>
+                <div className="time-checkbox">
+                  <input
+                    id="evening-check"
+                    type="checkbox"
+                    defaultChecked={currentTimeChecks.evening}
+                  />
+                  <label htmlFor="evening-check">夕</label>
+                </div>
+                <div className="time-checkbox">
+                  <input
+                    id="bedtime-check"
+                    type="checkbox"
+                    defaultChecked={currentTimeChecks.bedtime}
+                  />
+                  <label htmlFor="bedtime-check">寝る前</label>
+                </div>
+              </div>
             </div>
             
             <div className="modal-section">
