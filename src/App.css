@@ -954,29 +954,31 @@ body {
 /* 時間帯チェックボックスのコンテナ */
 .time-checkboxes {
   display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
+  gap: 12px; /* 16px → 12px に縮小 */
+  flex-wrap: nowrap; /* wrap → nowrap に変更 */
   justify-content: center;
   align-items: center;
   padding: 16px;
   background: #f8f9fa;
   border-radius: 8px;
   border: 1px solid #e0e0e0;
+  overflow-x: auto; /* 横スクロール対応 */
 }
 
 /* 個別の時間帯チェックボックス */
 .time-checkbox {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
+  gap: 4px; /* 6px → 4px に縮小 */
+  padding: 8px 10px; /* 12px → 10px に縮小 */
   background: white;
   border: 2px solid #e0e0e0;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s;
-  min-width: 70px;
+  min-width: 60px; /* 70px → 60px に縮小 */
   justify-content: center;
+  flex-shrink: 0; /* 縮小を防止 */
 }
 
 .time-checkbox:hover {
