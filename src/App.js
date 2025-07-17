@@ -3,7 +3,7 @@ import './App.css';
 
 function App() {
   // Google Apps Script エンドポイント
-  const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxaYxGGp9JUzHdKJtfAd7RjWl1CLTN-6va1v4o_VOTIfFXb-EqHq0gBzBeNG5AkiPXm/exec';
+  const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwdwMQQNkvoZC2e0EUz2Hw7IlAN7YGo-trcLxVNT-XYeJ6dDXANafkQsACIRPziGj3ynA/exec';
   // 今日の日付を取得
   const today = new Date();
   
