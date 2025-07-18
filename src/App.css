@@ -417,9 +417,9 @@ body {
 .time-checkbox {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 8px 6px;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 8px 12px;
   background: white;
   border: 2px solid #e0e0e0;
   border-radius: 8px;
@@ -441,7 +441,7 @@ body {
   color: #2c3e50;
   cursor: pointer;
   white-space: nowrap;
-  text-align: center;
+  text-align: left;
 }
 
 .time-checkbox input[type="checkbox"] {
@@ -976,8 +976,8 @@ body {
   }
   
   .time-checkbox {
-    gap: 3px;
-    padding: 6px 4px;
+    gap: 4px;
+    padding: 6px 10px;
     min-height: 40px;
   }
   
@@ -1043,8 +1043,8 @@ body {
   }
   
   .time-checkbox {
-    gap: 2px;
-    padding: 4px 2px;
+    gap: 3px;
+    padding: 4px 8px;
     min-height: 36px;
   }
   
