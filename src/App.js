@@ -23,8 +23,6 @@ function App() {
   const [takenDays, setTakenDays] = useState(new Map());
   const [memos, setMemos] = useState(new Map());
   const [startDate, setStartDate] = useState(null);
-  const [reminderTime, setReminderTime] = useState('');
-  const [reminderEnabled, setReminderEnabled] = useState(false);
   const [emailReminderTime, setEmailReminderTime] = useState('');
   const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
   const [userName, setUserName] = useState('');
@@ -170,6 +168,33 @@ function App() {
       setAuthError('ネットワークエラーが発生しました。');
     } finally {
       setLoginLoading(false);
+    }
+  };
+
+  // サプリメント設定をサーバーに送信
+  const updateSupplementSettings = async (email, isLutevitaSelected, isCustomSelected, customSupplementName) => {
+    try {
+      const response = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          action: 'updateSupplementSettings',
+          email: email,
+          isLutevitaSelected: isLutevitaSelected.toString(),
+          isCustomSelected: isCustomSelected.toString(),
+          customSupplementName: customSupplementName || ''
+        })
+      });
+      
+      const data = await response.json();
+      console.log('サプリメント設定更新レスポンス:', data);
+      
+      return data.success;
+    } catch (error) {
+      console.error('サプリメント設定更新エラー:', error);
+      return false;
     }
   };
 
@@ -354,20 +379,8 @@ function App() {
       setStartDate(new Date(savedStartDate));
     }
     
-    const savedReminderTime = localStorage.getItem('nometa-reminder-time');
-    const savedReminderEnabled = localStorage.getItem('nometa-reminder-enabled');
     const savedEmailReminderTime = localStorage.getItem('nometa-email-reminder-time');
     const savedEmailReminderEnabled = localStorage.getItem('nometa-email-reminder-enabled');
-    
-    if (savedReminderTime) {
-      setReminderTime(savedReminderTime);
-    }
-    if (savedReminderEnabled === 'true') {
-      setReminderEnabled(true);
-      if (savedReminderTime) {
-        setupDailyReminder(savedReminderTime);
-      }
-    }
     
     if (savedEmailReminderTime) {
       setEmailReminderTime(savedEmailReminderTime);
@@ -624,26 +637,19 @@ function App() {
     localStorage.setItem('nometa-custom-supplement-enabled', customCheckbox.toString());
     localStorage.setItem('nometa-custom-supplement-name', customInput);
     
-    const timeInput = document.getElementById('reminder-time-input').value;
-    const enabledInput = document.getElementById('reminder-enabled-checkbox').checked;
+    // サプリメント設定をサーバーに送信
+    if (userEmail) {
+      updateSupplementSettings(userEmail, lutevitaCheckbox, customCheckbox, customInput);
+    }
+    
     const emailTimeInput = document.getElementById('email-reminder-time-input').value;
     const emailEnabledInput = document.getElementById('email-reminder-enabled-checkbox').checked;
     
-    setReminderTime(timeInput);
-    setReminderEnabled(enabledInput);
     setEmailReminderTime(emailTimeInput);
     setEmailReminderEnabled(emailEnabledInput);
     
-    localStorage.setItem('nometa-reminder-time', timeInput);
-    localStorage.setItem('nometa-reminder-enabled', enabledInput.toString());
     localStorage.setItem('nometa-email-reminder-time', emailTimeInput);
     localStorage.setItem('nometa-email-reminder-enabled', emailEnabledInput.toString());
-    
-    if (enabledInput && timeInput) {
-      setupDailyReminder(timeInput);
-    } else {
-      clearDailyReminder();
-    }
     
     // メール通知設定をサーバーに送信
     if (emailEnabledInput && emailTimeInput) {
@@ -653,53 +659,11 @@ function App() {
     setShowSettings(false);
   };
 
-  // リマインダー機能
-  const requestNotificationPermission = async () => {
-    if ('Notification' in window) {
-      const permission = await Notification.requestPermission();
-      return permission === 'granted';
-    }
-    return false;
-  };
-
-  const setupDailyReminder = async (time) => {
-    const hasPermission = await requestNotificationPermission();
-    if (!hasPermission) {
-      alert('通知を有効にするには、ブラウザの設定で通知を許可してください。');
-      return;
-    }
-    
-    clearDailyReminder();
-    
-    const intervalId = setInterval(() => {
-      const now = new Date();
-      const currentTime = now.getHours().toString().padStart(2, '0') + ':' + 
-                         now.getMinutes().toString().padStart(2, '0');
-      
-      if (currentTime === time) {
-        showNotification();
-      }
-    }, 60000);
-    
-    window.reminderInterval = intervalId;
-  };
-
-  const clearDailyReminder = () => {
-    if (window.reminderInterval) {
-      clearInterval(window.reminderInterval);
-      window.reminderInterval = null;
-    }
-  };
-
-  const showNotification = () => {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('nometa - 服薬リマインダー', {
-        body: 'サプリメントを飲む時間です！',
-        icon: '/favicon.ico',
-        badge: '/favicon.ico'
-      });
-    }
-  };
+  // 削除された関数群（ブラウザ通知関連）
+  // - requestNotificationPermission
+  // - setupDailyReminder  
+  // - clearDailyReminder
+  // - showNotification
 
   // SNSシェア機能
   const shareToTwitter = () => {
@@ -1320,32 +1284,6 @@ function App() {
                   className="custom-supplement-input"
                 />
               </div>
-            </div>
-            
-            <div className="modal-section">
-              <label className="checkbox-label">
-                <input
-                  id="reminder-enabled-checkbox"
-                  type="checkbox"
-                  defaultChecked={reminderEnabled}
-                  onChange={(e) => {
-                    const timeInput = document.getElementById('reminder-time-input');
-                    timeInput.disabled = !e.target.checked;
-                  }}
-                />
-                ブラウザ通知を有効にする
-              </label>
-            </div>
-            
-            <div className="modal-section">
-              <label htmlFor="reminder-time-input">ブラウザ通知時刻</label>
-              <input
-                id="reminder-time-input"
-                type="time"
-                defaultValue={reminderTime}
-                disabled={!reminderEnabled}
-              />
-              <small>アプリが開いている時のみ通知されます。</small>
             </div>
             
             <div className="modal-section">
