@@ -25,6 +25,8 @@ function App() {
   const [startDate, setStartDate] = useState(null);
   const [reminderTime, setReminderTime] = useState('');
   const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [emailReminderTime, setEmailReminderTime] = useState('');
+  const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [isLutevitaSelected, setIsLutevitaSelected] = useState(false);
@@ -168,6 +170,32 @@ function App() {
       setAuthError('ネットワークエラーが発生しました。');
     } finally {
       setLoginLoading(false);
+    }
+  };
+
+  // メール通知設定をサーバーに送信
+  const updateEmailReminderSettings = async (email, time, enabled) => {
+    try {
+      const response = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          action: 'updateEmailReminder',
+          email: email,
+          reminderTime: time,
+          reminderEnabled: enabled.toString()
+        })
+      });
+      
+      const data = await response.json();
+      console.log('メール通知設定更新レスポンス:', data);
+      
+      return data.success;
+    } catch (error) {
+      console.error('メール通知設定更新エラー:', error);
+      return false;
     }
   };
 
@@ -328,6 +356,9 @@ function App() {
     
     const savedReminderTime = localStorage.getItem('nometa-reminder-time');
     const savedReminderEnabled = localStorage.getItem('nometa-reminder-enabled');
+    const savedEmailReminderTime = localStorage.getItem('nometa-email-reminder-time');
+    const savedEmailReminderEnabled = localStorage.getItem('nometa-email-reminder-enabled');
+    
     if (savedReminderTime) {
       setReminderTime(savedReminderTime);
     }
@@ -336,6 +367,13 @@ function App() {
       if (savedReminderTime) {
         setupDailyReminder(savedReminderTime);
       }
+    }
+    
+    if (savedEmailReminderTime) {
+      setEmailReminderTime(savedEmailReminderTime);
+    }
+    if (savedEmailReminderEnabled === 'true') {
+      setEmailReminderEnabled(true);
     }
     
     const savedTakenDays = localStorage.getItem('nometa-taken-days');
@@ -588,17 +626,28 @@ function App() {
     
     const timeInput = document.getElementById('reminder-time-input').value;
     const enabledInput = document.getElementById('reminder-enabled-checkbox').checked;
+    const emailTimeInput = document.getElementById('email-reminder-time-input').value;
+    const emailEnabledInput = document.getElementById('email-reminder-enabled-checkbox').checked;
     
     setReminderTime(timeInput);
     setReminderEnabled(enabledInput);
+    setEmailReminderTime(emailTimeInput);
+    setEmailReminderEnabled(emailEnabledInput);
     
     localStorage.setItem('nometa-reminder-time', timeInput);
     localStorage.setItem('nometa-reminder-enabled', enabledInput.toString());
+    localStorage.setItem('nometa-email-reminder-time', emailTimeInput);
+    localStorage.setItem('nometa-email-reminder-enabled', emailEnabledInput.toString());
     
     if (enabledInput && timeInput) {
       setupDailyReminder(timeInput);
     } else {
       clearDailyReminder();
+    }
+    
+    // メール通知設定をサーバーに送信
+    if (emailEnabledInput && emailTimeInput) {
+      updateEmailReminderSettings(userEmail, emailTimeInput, emailEnabledInput);
     }
     
     setShowSettings(false);
@@ -1284,19 +1333,45 @@ function App() {
                     timeInput.disabled = !e.target.checked;
                   }}
                 />
-                リマインダーを有効にする
+                ブラウザ通知を有効にする
               </label>
             </div>
             
             <div className="modal-section">
-              <label htmlFor="reminder-time-input">リマインダー時刻</label>
+              <label htmlFor="reminder-time-input">ブラウザ通知時刻</label>
               <input
                 id="reminder-time-input"
                 type="time"
                 defaultValue={reminderTime}
                 disabled={!reminderEnabled}
               />
-              <small>設定した時間に服薬の通知が届きます。</small>
+              <small>アプリが開いている時のみ通知されます。</small>
+            </div>
+            
+            <div className="modal-section">
+              <label className="checkbox-label">
+                <input
+                  id="email-reminder-enabled-checkbox"
+                  type="checkbox"
+                  defaultChecked={emailReminderEnabled}
+                  onChange={(e) => {
+                    const timeInput = document.getElementById('email-reminder-time-input');
+                    timeInput.disabled = !e.target.checked;
+                  }}
+                />
+                メール通知を有効にする
+              </label>
+            </div>
+            
+            <div className="modal-section">
+              <label htmlFor="email-reminder-time-input">メール通知時刻</label>
+              <input
+                id="email-reminder-time-input"
+                type="time"
+                defaultValue={emailReminderTime}
+                disabled={!emailReminderEnabled}
+              />
+              <small>設定した時間に服薬リマインダーのメールが届きます。確実に通知されます。</small>
             </div>
             
             <div className="modal-buttons">
