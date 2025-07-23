@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 
 function App() {
@@ -15,13 +15,11 @@ function App() {
   const [pinCode, setPinCode] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [authError, setAuthError] = useState('');
-  const [isNewUser, setIsNewUser] = useState(false);
   
   // アプリの状態管理
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [takenDays, setTakenDays] = useState(new Map());
-  const [memos, setMemos] = useState(new Map());
   const [startDate, setStartDate] = useState(null);
   const [emailReminderTime, setEmailReminderTime] = useState('');
   const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
@@ -34,7 +32,6 @@ function App() {
   const [tutorialStep, setTutorialStep] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
-  const [currentMemo, setCurrentMemo] = useState('');
   const [showSettings, setShowSettings] = useState(false);
 
   // 時間帯別チェック用の状態
@@ -90,15 +87,9 @@ function App() {
     try {
       const response = await fetch(API_ENDPOINT, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          action: 'sendPin',
-          email: email
-        })
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ action: 'sendPin', email: email })
       });
-      
       const data = await response.json();
       
       if (data.success) {
@@ -124,38 +115,25 @@ function App() {
     try {
       const response = await fetch(API_ENDPOINT, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          action: 'verifyPin',
-          email: authEmail,
-          pin: pinCode
-        })
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ action: 'verifyPin', email: authEmail, pin: pinCode })
       });
-      
       const data = await response.json();
       
       if (data.success) {
-        const authToken = 'auth-' + Date.now();
-        const loginDate = new Date().toISOString();
-        
-        localStorage.setItem('nometa-auth-token', authToken);
-        localStorage.setItem('nometa-login-date', loginDate);
+        localStorage.setItem('nometa-auth-token', 'auth-' + Date.now());
+        localStorage.setItem('nometa-login-date', new Date().toISOString());
         localStorage.setItem('nometa-auto-login', 'true');
         
         setIsAuthenticated(true);
         setShowPinInput(false);
         setPinCode('');
         
-        // 新規ユーザーか既存ユーザーかを判定
-        if (data.userData && (data.userData.name || data.userData.startDate)) {
-          // 既存ユーザー
-          syncUserData(data.userData);
-          setIsNewUser(false);
-        } else {
-          // 新規ユーザー：直接チュートリアル開始
-          setIsNewUser(true);
+        // サーバーからのデータで状態を完全に同期
+        syncUserDataFromServer(data.userData);
+
+        // 新規ユーザーの場合チュートリアル表示
+        if (!data.userData.name && !data.userData.startDate) {
           setUserEmail(authEmail);
           localStorage.setItem('nometa-user-email', authEmail);
           setShowTutorial(true);
@@ -171,14 +149,41 @@ function App() {
     }
   };
 
-  // サプリメント設定をサーバーに送信
+  // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+  // ★★★ 新機能：服薬記録をサーバーに送信 ★★★
+  // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+  const updateTakenDaysOnServer = async (email, takenDaysMap) => {
+    const takenDaysObj = {};
+    for (const [key, value] of takenDaysMap.entries()) {
+      takenDaysObj[key] = Object.fromEntries(value);
+    }
+    const takenDaysJSON = JSON.stringify(takenDaysObj);
+
+    try {
+      const response = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          action: 'updateTakenDaysData',
+          email: email,
+          takenDaysData: takenDaysJSON
+        })
+      });
+      const data = await response.json();
+      console.log('服薬記録更新レスポンス:', data);
+      return data.success;
+    } catch (error) {
+      console.error('服薬記録更新エラー:', error);
+      return false;
+    }
+  };
+
+  // 他の設定をサーバーに送信する関数群...
   const updateSupplementSettings = async (email, isLutevitaSelected, isCustomSelected, customSupplementName) => {
     try {
       const response = await fetch(API_ENDPOINT, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', },
         body: new URLSearchParams({
           action: 'updateSupplementSettings',
           email: email,
@@ -187,25 +192,20 @@ function App() {
           customSupplementName: customSupplementName || ''
         })
       });
-      
       const data = await response.json();
-      console.log('サプリメント設定更新レスポンス:', data);
-      
+      console.log('サプリ設定更新レスポンス:', data);
       return data.success;
     } catch (error) {
-      console.error('サプリメント設定更新エラー:', error);
+      console.error('サプリ設定更新エラー:', error);
       return false;
     }
   };
 
-  // メール通知設定をサーバーに送信
   const updateEmailReminderSettings = async (email, time, enabled) => {
     try {
       const response = await fetch(API_ENDPOINT, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', },
         body: new URLSearchParams({
           action: 'updateEmailReminder',
           email: email,
@@ -213,10 +213,8 @@ function App() {
           reminderEnabled: enabled.toString()
         })
       });
-      
       const data = await response.json();
       console.log('メール通知設定更新レスポンス:', data);
-      
       return data.success;
     } catch (error) {
       console.error('メール通知設定更新エラー:', error);
@@ -224,24 +222,19 @@ function App() {
     }
   };
 
-  // ユーザー名をサーバーに送信
   const updateUserNameOnServer = async (email, name) => {
     try {
       const response = await fetch(API_ENDPOINT, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', },
         body: new URLSearchParams({
           action: 'updateUserName',
           email: email,
           name: name
         })
       });
-      
       const data = await response.json();
       console.log('ユーザー名更新レスポンス:', data);
-      
       return data.success;
     } catch (error) {
       console.error('ユーザー名更新エラー:', error);
@@ -249,164 +242,92 @@ function App() {
     }
   };
 
-  // ユーザーデータを同期
-  const syncUserData = (userData) => {
-    if (userData.name) {
-      setUserName(userData.name);
-      localStorage.setItem('nometa-username', userData.name);
-    }
+  // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+  // ★★★ 修正：サーバーからのデータで状態を完全に同期 ★★★
+  // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+  const syncUserDataFromServer = (userData) => {
+    if (!userData) return;
+
+    // 基本情報
+    setUserName(userData.name || '');
+    localStorage.setItem('nometa-username', userData.name || '');
+    setUserEmail(userData.email);
+    localStorage.setItem('nometa-user-email', userData.email);
     
-    if (userData.email) {
-      setUserEmail(userData.email);
-      localStorage.setItem('nometa-user-email', userData.email);
-    }
-    
-    if (userData.takenDays) {
-      const mapData = new Map();
-      for (const [key, value] of Object.entries(userData.takenDays)) {
-        mapData.set(key, value);
-      }
-      setTakenDays(mapData);
-    }
-    
+    // 開始日
     if (userData.startDate) {
       setStartDate(new Date(userData.startDate));
       localStorage.setItem('nometa-start-date', userData.startDate);
+    } else {
+      setStartDate(null);
+      localStorage.removeItem('nometa-start-date');
+    }
+
+    // 服薬記録
+    if (userData.takenDaysData) {
+      try {
+        const parsedTakenDays = JSON.parse(userData.takenDaysData);
+        const mapData = new Map();
+        for (const [key, value] of Object.entries(parsedTakenDays)) {
+          const dayMap = new Map(Object.entries(value));
+          mapData.set(key, dayMap);
+        }
+        setTakenDays(mapData);
+        localStorage.setItem('nometa-taken-days', userData.takenDaysData);
+      } catch (e) {
+        console.error("サーバーからの服薬記録の解析に失敗:", e);
+        setTakenDays(new Map());
+        localStorage.removeItem('nometa-taken-days');
+      }
+    } else {
+      setTakenDays(new Map());
+      localStorage.removeItem('nometa-taken-days');
     }
   };
 
-  // ログアウト
-  const handleLogout = () => {
-    if (window.confirm('ログアウトしますか？次回ログイン時にPIN認証が必要になります。')) {
-      clearAuthData();
-      setShowLogin(true);
-    }
-  };
-
-  // ログイン処理
-  const handleLogin = () => {
-    const emailInput = document.getElementById('login-email-input').value;
-    
-    if (!emailInput.trim()) {
-      setAuthError('メールアドレスを入力してください');
-      return;
-    }
-    
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(emailInput.trim())) {
-      setAuthError('正しいメールアドレスを入力してください');
-      return;
-    }
-    
-    sendPinCode(emailInput.trim());
-  };
-
-  // PIN入力処理
-  const handlePinSubmit = () => {
-    if (pinCode.length !== 6) {
-      setAuthError('6桁のPINコードを入力してください');
-      return;
-    }
-    
-    verifyPinCode();
-  };
-
-  // 初回起動時にデータを読み込み
-  React.useEffect(() => {
+  // 初回起動時にlocalStorageからデータを読み込み（オフライン対応）
+  useEffect(() => {
     const isLoggedIn = checkAuthStatus();
-    
     if (!isLoggedIn) {
       setShowLogin(true);
-      return;
+    } else {
+      loadUserDataFromLocalStorage();
     }
-    
-    loadUserData();
   }, []);
 
-  // 既存データを新形式に変換
-  const convertLegacyData = (savedTakenDays) => {
-    const mapData = new Map();
-    
-    for (const [key, value] of Object.entries(savedTakenDays)) {
-      if (Array.isArray(value)) {
-        // 既存の配列形式を新形式に変換
-        const convertedValue = new Map();
-        value.forEach(day => {
-          convertedValue.set(day, {
-            morning: true,
-            noon: false,
-            evening: false,
-            bedtime: false,
-            other: false
-          });
-        });
-        mapData.set(key, convertedValue);
-      } else {
-        // 既に新形式の場合
-        const convertedValue = new Map();
-        for (const [day, timeChecks] of Object.entries(value)) {
-          // otherフィールドが存在しない場合は追加
-          const updatedTimeChecks = {
-            morning: timeChecks.morning || false,
-            noon: timeChecks.noon || false,
-            evening: timeChecks.evening || false,
-            bedtime: timeChecks.bedtime || false,
-            other: timeChecks.other || false
-          };
-          convertedValue.set(parseInt(day), updatedTimeChecks);
-        }
-        mapData.set(key, convertedValue);
-      }
-    }
-    
-    return mapData;
-  };
-
-  // ユーザーデータを読み込む
-  const loadUserData = () => {
-    const savedLutevita = localStorage.getItem('nometa-lutevita') === 'true';
-    const savedCustom = localStorage.getItem('nometa-custom-supplement-enabled') === 'true';
-    const savedCustomName = localStorage.getItem('nometa-custom-supplement-name');
-    
-    setIsLutevitaSelected(savedLutevita);
-    setIsCustomSelected(savedCustom);
-    if (savedCustomName) {
-      setCustomSupplementName(savedCustomName);
-    }
-    
-    const savedStartDate = localStorage.getItem('nometa-start-date');
-    if (savedStartDate) {
-      setStartDate(new Date(savedStartDate));
-    }
-    
-    const savedEmailReminderTime = localStorage.getItem('nometa-email-reminder-time');
-    const savedEmailReminderEnabled = localStorage.getItem('nometa-email-reminder-enabled');
-    
-    if (savedEmailReminderTime) {
-      setEmailReminderTime(savedEmailReminderTime);
-    }
-    if (savedEmailReminderEnabled === 'true') {
-      setEmailReminderEnabled(true);
-    }
-    
+  const loadUserDataFromLocalStorage = () => {
     const savedTakenDays = localStorage.getItem('nometa-taken-days');
     if (savedTakenDays) {
-      const parsed = JSON.parse(savedTakenDays);
-      const mapData = convertLegacyData(parsed);
-      setTakenDays(mapData);
-    }
-    
-    const savedMemos = localStorage.getItem('nometa-memos');
-    if (savedMemos) {
-      const parsed = JSON.parse(savedMemos);
-      const mapData = new Map();
-      for (const [key, value] of Object.entries(parsed)) {
-        const memoMap = new Map(Object.entries(value));
-        mapData.set(key, memoMap);
+      try {
+        const parsed = JSON.parse(savedTakenDays);
+        const mapData = new Map();
+        for (const [key, value] of Object.entries(parsed)) {
+          const dayMap = new Map();
+          for (const [day, checks] of Object.entries(value)) {
+            dayMap.set(parseInt(day), checks);
+          }
+          mapData.set(key, dayMap);
+        }
+        setTakenDays(mapData);
+      } catch (e) {
+        console.error("ローカルの服薬記録の解析に失敗:", e);
       }
-      setMemos(mapData);
     }
+    // 他のlocalStorageデータも読み込む
+    const savedLutevita = localStorage.getItem('nometa-lutevita') === 'true';
+    setIsLutevitaSelected(savedLutevita);
+    const savedCustom = localStorage.getItem('nometa-custom-supplement-enabled') === 'true';
+    setIsCustomSelected(savedCustom);
+    const savedCustomName = localStorage.getItem('nometa-custom-supplement-name');
+    setCustomSupplementName(savedCustomName || '');
+    const savedStartDate = localStorage.getItem('nometa-start-date');
+    if (savedStartDate) setStartDate(new Date(savedStartDate));
+    const savedEmailReminderTime = localStorage.getItem('nometa-email-reminder-time');
+    setEmailReminderTime(savedEmailReminderTime || '');
+    const savedEmailReminderEnabled = localStorage.getItem('nometa-email-reminder-enabled') === 'true';
+    setEmailReminderEnabled(savedEmailReminderEnabled);
   };
+
 
   // カレンダー計算
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -415,16 +336,9 @@ function App() {
   // 表示用のサプリ名を取得
   const getDisplaySupplementName = () => {
     const supplements = [];
-    if (isLutevitaSelected) {
-      supplements.push('ルテビタ');
-    }
-    if (isCustomSelected && customSupplementName) {
-      supplements.push(customSupplementName);
-    }
-    
-    if (supplements.length > 0) {
-      return supplements.join('・') + '';
-    }
+    if (isLutevitaSelected) supplements.push('ルテビタ');
+    if (isCustomSelected && customSupplementName) supplements.push(customSupplementName);
+    if (supplements.length > 0) return supplements.join('・') + '';
     return 'サプリメント';
   };
 
@@ -434,15 +348,12 @@ function App() {
 
   // 現在の月のデータを取得
   const getCurrentMonthTakenDays = () => takenDays.get(currentMonthKey) || new Map();
-  const getCurrentMonthMemos = () => memos.get(currentMonthKey) || new Map();
 
   // 日付の服薬チェック状態を取得
   const getDayTakenStatus = (day) => {
     const currentTakenDays = getCurrentMonthTakenDays();
     const dayData = currentTakenDays.get(day);
     if (!dayData) return false;
-    
-    // どれか1つでもチェックされていれば服薬済み
     return dayData.morning || dayData.noon || dayData.evening || dayData.bedtime || dayData.other;
   };
 
@@ -475,21 +386,13 @@ function App() {
 
   // 月ナビゲーション
   const goToPreviousMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(currentYear - 1);
-    } else {
-      setCurrentMonth(currentMonth - 1);
-    }
+    setCurrentMonth(prev => prev === 0 ? 11 : prev - 1);
+    if (currentMonth === 0) setCurrentYear(prev => prev - 1);
   };
 
   const goToNextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(currentYear + 1);
-    } else {
-      setCurrentMonth(currentMonth + 1);
-    }
+    setCurrentMonth(prev => prev === 11 ? 0 : prev + 1);
+    if (currentMonth === 11) setCurrentYear(prev => prev + 1);
   };
 
   const goToToday = () => {
@@ -500,53 +403,29 @@ function App() {
   // モーダル操作
   const handleDayClick = (day) => {
     setSelectedDay(day);
-    const currentMemos = getCurrentMonthMemos();
-    setCurrentMemo(currentMemos.get(day) || '');
-    
-    // 現在の時間帯チェック状態を設定
     const currentTakenDays = getCurrentMonthTakenDays();
     const dayData = currentTakenDays.get(day);
-    if (dayData) {
-      setCurrentTimeChecks(dayData);
-    } else {
-      setCurrentTimeChecks({
-        morning: false,
-        noon: false,
-        evening: false,
-        bedtime: false,
-        other: false
-      });
-    }
-    
+    setCurrentTimeChecks(dayData || { morning: false, noon: false, evening: false, bedtime: false, other: false });
     setShowModal(true);
   };
 
   const closeModal = () => {
     setShowModal(false);
     setSelectedDay(null);
-    setCurrentMemo('');
-    setCurrentTimeChecks({
-      morning: false,
-      noon: false,
-      evening: false,
-      bedtime: false,
-      other: false
-    });
+    setCurrentTimeChecks({ morning: false, noon: false, evening: false, bedtime: false, other: false });
   };
 
-  // データ保存
+  // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+  // ★★★ 修正：データ保存時にサーバーへも送信 ★★★
+  // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
   const saveData = () => {
-    const currentTakenDays = getCurrentMonthTakenDays();
-    const currentMemos = getCurrentMonthMemos();
-    
-    // 時間帯チェック状態を取得
     const morningCheck = document.getElementById('morning-check').checked;
     const noonCheck = document.getElementById('noon-check').checked;
     const eveningCheck = document.getElementById('evening-check').checked;
     const bedtimeCheck = document.getElementById('bedtime-check').checked;
     const otherCheck = document.getElementById('other-check').checked;
     
-    const newTakenDays = new Map(currentTakenDays);
+    const newTakenDays = new Map(getCurrentMonthTakenDays());
     newTakenDays.set(selectedDay, {
       morning: morningCheck,
       noon: noonCheck,
@@ -559,38 +438,24 @@ function App() {
     newTakenDaysMap.set(currentMonthKey, newTakenDays);
     setTakenDays(newTakenDaysMap);
     
-    const newMemos = new Map(currentMemos);
-    if (currentMemo.trim()) {
-      newMemos.set(selectedDay, currentMemo.trim());
-    } else {
-      newMemos.delete(selectedDay);
-    }
-    
-    const newMemosMap = new Map(memos);
-    newMemosMap.set(currentMonthKey, newMemos);
-    setMemos(newMemosMap);
-    
-    saveToLocalStorage(newTakenDaysMap, newMemosMap);
+    // サーバーとlocalStorageに保存
+    saveDataToSources(newTakenDaysMap);
     closeModal();
   };
 
-  const saveToLocalStorage = (takenDaysMap, memosMap) => {
+  const saveDataToSources = (takenDaysMap) => {
+    // サーバーに保存
+    if (userEmail) {
+      updateTakenDaysOnServer(userEmail, takenDaysMap);
+    }
+    // ローカルにも保存（オフライン対応）
     const takenDaysObj = {};
     for (const [key, value] of takenDaysMap.entries()) {
-      const dayObj = {};
-      for (const [day, timeChecks] of value.entries()) {
-        dayObj[day] = timeChecks;
-      }
-      takenDaysObj[key] = dayObj;
+      takenDaysObj[key] = Object.fromEntries(value);
     }
     localStorage.setItem('nometa-taken-days', JSON.stringify(takenDaysObj));
-    
-    const memosObj = {};
-    for (const [key, value] of memosMap.entries()) {
-      memosObj[key] = Object.fromEntries(value);
-    }
-    localStorage.setItem('nometa-memos', JSON.stringify(memosObj));
   };
+
 
   // 設定保存
   const saveSettings = () => {
@@ -608,11 +473,7 @@ function App() {
       const newName = nameInput.trim();
       setUserName(newName);
       localStorage.setItem('nometa-username', newName);
-      
-      // サーバーにも名前を送信
-      if (userEmail) {
-        updateUserNameOnServer(userEmail, newName);
-      }
+      if (userEmail) updateUserNameOnServer(userEmail, newName);
     }
     
     if (emailInput.trim()) {
@@ -637,7 +498,6 @@ function App() {
     localStorage.setItem('nometa-custom-supplement-enabled', customCheckbox.toString());
     localStorage.setItem('nometa-custom-supplement-name', customInput);
     
-    // サプリメント設定をサーバーに送信
     if (userEmail) {
       updateSupplementSettings(userEmail, lutevitaCheckbox, customCheckbox, customInput);
     }
@@ -651,19 +511,12 @@ function App() {
     localStorage.setItem('nometa-email-reminder-time', emailTimeInput);
     localStorage.setItem('nometa-email-reminder-enabled', emailEnabledInput.toString());
     
-    // メール通知設定をサーバーに送信
-    if (emailEnabledInput && emailTimeInput) {
+    if (userEmail) {
       updateEmailReminderSettings(userEmail, emailTimeInput, emailEnabledInput);
     }
     
     setShowSettings(false);
   };
-
-  // 削除された関数群（ブラウザ通知関連）
-  // - requestNotificationPermission
-  // - setupDailyReminder  
-  // - clearDailyReminder
-  // - showNotification
 
   // SNSシェア機能
   const shareToTwitter = () => {
@@ -798,7 +651,7 @@ function App() {
     },
     {
       title: "⚙️ 飲んでいるサプリを登録しよう",
-      content: "設定画面でサプリメントを登録すると：\n\n✨ ルテビタなど具体的な名前で記録\n🎯 より正確な管理ができる\n📝 専用のメモ機能も使える",
+      content: "設定画面でサプリメントを登録すると：\n\n✨ ルテビタなど具体的な名前で記録\n🎯 より正確な管理ができる",
       buttonText: "次へ",
       type: "advanced"
     },
@@ -835,7 +688,6 @@ function App() {
   const renderCalendar = () => {
     const days = [];
     const currentTakenDays = getCurrentMonthTakenDays();
-    const currentMemos = getCurrentMonthMemos();
     
     // 空白のセル
     for (let i = 0; i < firstDay; i++) {
@@ -845,7 +697,6 @@ function App() {
     // 日付のセル
     for (let day = 1; day <= daysInMonth; day++) {
       const isTaken = getDayTakenStatus(day);
-      const hasMemo = currentMemos.has(day);
       const isToday = day === today.getDate() && 
                      currentMonth === today.getMonth() && 
                      currentYear === today.getFullYear();
@@ -853,12 +704,11 @@ function App() {
       days.push(
         <div
           key={day}
-          className={`calendar-day ${isTaken ? 'taken' : ''} ${isToday ? 'today' : ''} ${hasMemo ? 'has-memo' : ''}`}
+          className={`calendar-day ${isTaken ? 'taken' : ''} ${isToday ? 'today' : ''}`}
           onClick={() => handleDayClick(day)}
         >
           {day}
           {isTaken && <div className="check-mark">✓</div>}
-          {hasMemo && <div className="memo-indicator">📝</div>}
         </div>
       );
     }
@@ -912,6 +762,10 @@ function App() {
                       <li>PINコード送信（ログイン認証用）</li>
                       <li>継続サポートメッセージの配信</li>
                       <li>YURUストアからの商品・サービスのご案内</li>
+                      {/* ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ */}
+                      {/* ★★★ 修正箇所：プライバシーポリシーの文言を更新 ★★★ */}
+                      {/* ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ */}
+                      <li>服薬記録の保存（機種変更時のデータ引継ぎ用）</li>
                     </ul>
                     <p>
                       配信停止はいつでも可能です。<br/>
@@ -1183,16 +1037,9 @@ function App() {
               </div>
             </div>
             
-            <div className="modal-section">
-              <label htmlFor="memo-input">メモ</label>
-              <textarea
-                id="memo-input"
-                value={currentMemo}
-                onChange={(e) => setCurrentMemo(e.target.value)}
-                placeholder="体調、サプリメント注文、肌の調子など..."
-                rows="4"
-              />
-            </div>
+            {/* ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ */}
+            {/* ★★★ 修正箇所：メモ機能を完全に削除 ★★★ */}
+            {/* ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ */}
             
             <div className="modal-buttons">
               <button className="btn-secondary" onClick={closeModal}>
