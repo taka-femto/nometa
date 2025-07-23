@@ -240,6 +240,27 @@ function App() {
     }
   };
 
+  // 開始日をサーバーに送信（新規追加）
+  const updateStartDateOnServer = async (email, startDate) => {
+    try {
+      const response = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          action: 'updateStartDate',
+          email: email,
+          startDate: startDate
+        })
+      });
+      const data = await response.json();
+      console.log('開始日更新レスポンス:', data);
+      return data.success;
+    } catch (error) {
+      console.error('開始日更新エラー:', error);
+      return false;
+    }
+  };
+
   // サーバーからのデータで状態を完全に同期
   const syncUserDataFromServer = (userData) => {
     if (!userData) return;
@@ -450,6 +471,58 @@ function App() {
     localStorage.setItem('nometa-taken-days', JSON.stringify(takenDaysObj));
   };
 
+  // ログインボタンのハンドラー
+  const handleLogin = () => {
+    const emailInput = document.getElementById('login-email-input');
+    const email = emailInput.value.trim();
+    
+    if (!email) {
+      setAuthError('メールアドレスを入力してください');
+      return;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setAuthError('正しいメールアドレスを入力してください');
+      return;
+    }
+    
+    sendPinCode(email);
+  };
+
+  // PIN送信ボタンのハンドラー
+  const handlePinSubmit = () => {
+    if (pinCode.length !== 6) {
+      setAuthError('6桁のPINコードを入力してください');
+      return;
+    }
+    verifyPinCode();
+  };
+
+  // ログアウトのハンドラー
+  const handleLogout = () => {
+    // 認証データをクリア
+    clearAuthData();
+    
+    // すべてのローカルデータをクリア
+    localStorage.clear();
+    
+    // 状態をリセット
+    setIsAuthenticated(false);
+    setShowLogin(true);
+    setUserName('');
+    setUserEmail('');
+    setTakenDays(new Map());
+    setStartDate(null);
+    setIsLutevitaSelected(false);
+    setIsCustomSelected(false);
+    setCustomSupplementName('');
+    setEmailReminderTime('');
+    setEmailReminderEnabled(false);
+    
+    // ページをリロード
+    window.location.reload();
+  };
 
   // 設定保存
   const saveSettings = () => {
@@ -458,6 +531,11 @@ function App() {
       const newStartDate = new Date(dateInput);
       setStartDate(newStartDate);
       localStorage.setItem('nometa-start-date', newStartDate.toISOString());
+      
+      // 開始日もサーバーに保存
+      if (userEmail) {
+        updateStartDateOnServer(userEmail, newStartDate.toISOString());
+      }
     }
     
     const nameInput = document.getElementById('username-input').value;
