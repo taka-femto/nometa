@@ -149,9 +149,7 @@ function App() {
     }
   };
 
-  // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-  // ★★★ 新機能：服薬記録をサーバーに送信 ★★★
-  // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+  // 服薬記録をサーバーに送信
   const updateTakenDaysOnServer = async (email, takenDaysMap) => {
     const takenDaysObj = {};
     for (const [key, value] of takenDaysMap.entries()) {
@@ -242,9 +240,7 @@ function App() {
     }
   };
 
-  // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-  // ★★★ 修正：サーバーからのデータで状態を完全に同期 ★★★
-  // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+  // サーバーからのデータで状態を完全に同期
   const syncUserDataFromServer = (userData) => {
     if (!userData) return;
 
@@ -415,9 +411,7 @@ function App() {
     setCurrentTimeChecks({ morning: false, noon: false, evening: false, bedtime: false, other: false });
   };
 
-  // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-  // ★★★ 修正：データ保存時にサーバーへも送信 ★★★
-  // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+  // データ保存時にサーバーへも送信
   const saveData = () => {
     const morningCheck = document.getElementById('morning-check').checked;
     const noonCheck = document.getElementById('noon-check').checked;
@@ -762,9 +756,6 @@ function App() {
                       <li>PINコード送信（ログイン認証用）</li>
                       <li>継続サポートメッセージの配信</li>
                       <li>YURUストアからの商品・サービスのご案内</li>
-                      {/* ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ */}
-                      {/* ★★★ 修正箇所：プライバシーポリシーの文言を更新 ★★★ */}
-                      {/* ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ */}
                       <li>服薬記録の保存（機種変更時のデータ引継ぎ用）</li>
                     </ul>
                     <p>
@@ -1036,10 +1027,6 @@ function App() {
                 </div>
               </div>
             </div>
-            
-            {/* ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ */}
-            {/* ★★★ 修正箇所：メモ機能を完全に削除 ★★★ */}
-            {/* ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ */}
             
             <div className="modal-buttons">
               <button className="btn-secondary" onClick={closeModal}>
