@@ -1227,7 +1227,8 @@ function App() {
               <input
                 id="email-reminder-time-input"
                 type="time"
-                defaultValue={emailReminderTime}
+                value={emailReminderTime}
+                onChange={(e) => setEmailReminderTime(e.target.value)}
                 disabled={!emailReminderEnabled}
               />
               <small>設定した時間に服薬リマインダーのメールが届きます。確実に通知されます。</small>
