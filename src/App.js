@@ -1007,17 +1007,6 @@ function App() {
           {startDate && (
             <div className="share-section">
               <h3>成果をシェアしよう！</h3>
-              <div className="share-buttons">
-                <button className="share-btn twitter" onClick={shareToTwitter} title="Xでシェア">
-                  <span className="share-icon">𝕏</span>
-                </button>
-                <button className="share-btn facebook" onClick={shareToFacebook} title="Facebookでシェア">
-                  <i className="fab fa-facebook-f"></i>
-                </button>
-                <button className="share-btn instagram" onClick={generateShareImage} title="Instagram用画像をダウンロード">
-                  <i className="fab fa-instagram"></i>
-                </button>
-              </div>
             </div>
           )}
         </div>
