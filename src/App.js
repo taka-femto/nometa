@@ -300,6 +300,26 @@ function App() {
       setTakenDays(new Map());
       localStorage.removeItem('nometa-taken-days');
     }
+      // サプリメント設定を同期
+    const lutevitaSelected = userData.lutevita === 1 || userData.lutevita === '1';
+    setIsLutevitaSelected(lutevitaSelected);
+    localStorage.setItem('nometa-lutevita', lutevitaSelected.toString());
+
+    const customName = userData.customSupplement || '';
+    const customSelected = customName !== '';
+    setIsCustomSelected(customSelected);
+    setCustomSupplementName(customName);
+    localStorage.setItem('nometa-custom-supplement-enabled', customSelected.toString());
+    localStorage.setItem('nometa-custom-supplement-name', customName);
+
+    // メールリマインダー設定を同期
+    const reminderTime = userData.emailReminderTime || '';
+    setEmailReminderTime(reminderTime);
+    localStorage.setItem('nometa-email-reminder-time', reminderTime);
+
+    const reminderEnabled = userData.emailReminderEnabled === true;
+    setEmailReminderEnabled(reminderEnabled);
+    localStorage.setItem('nometa-email-reminder-enabled', reminderEnabled.toString());
   };
 
   // 初回起動時にlocalStorageからデータを読み込み（オフライン対応）
